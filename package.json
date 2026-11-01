@@ -16,7 +16,8 @@
     "content:validate": "node scripts/validate-content.mjs --acceptance",
     "cloudflare:config": "node scripts/cloudflare-config.mjs",
     "cloudflare:migrate": "wrangler d1 migrations apply DB --remote --config dist/server/wrangler.cloudflare.json",
-    "cloudflare:deploy": "wrangler deploy --config dist/server/wrangler.cloudflare.json"
+    "cloudflare:deploy": "wrangler deploy --config dist/server/wrangler.cloudflare.json",
+    "security:scan": "node scripts/security-scan.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
