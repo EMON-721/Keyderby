@@ -123,6 +123,6 @@ Race progress uses one-second polling, not WebSockets. Scoring is computed on th
 ## Website & repository links
 
 - **Source repository:** https://github.com/EMON-721/Keyderby
-- **Website:** No independently confirmed public deployment URL available. A link will be added only after its address is established.
+- **Published website URL (owner-provided):** https://keyderby.emon721.workers.dev/
 
 <!-- END DEPLOYMENT LINKS -->
