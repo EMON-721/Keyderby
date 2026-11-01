@@ -27,6 +27,7 @@ function Empty({ icon: Icon = Flag, title, desc, action }: {
 export default function App() {
     const [page, setPage] = useState('home'), [user, setUser] = useState<Any>(null), [boot, setBoot] = useState<Any>(null), [data, setData] = useState<Any>({ results: [], goals: [], badges: [] }), [modal, setModal] = useState(''), [toast, setToast] = useState(''), [loadError, setLoadError] = useState(''), [theme, setTheme] = useState('light'), [roomId, setRoomId] = useState(''), [practiceOptions, setPracticeOptions] = useState<Any>({}), [info, setInfo] = useState('Typing guide'), [recoveryKey, setRecoveryKey] = useState(''), [profileOpen, setProfileOpen] = useState(false);
     const sessionActive = useRef(false);
+    const profileMenuRef = useRef<HTMLDivElement>(null);
     const notify = useCallback((s: string) => { setToast(s); setTimeout(() => setToast(''), 4500); }, []);
     const refresh = useCallback(async () => { try {
         const b = await api('bootstrap');
@@ -54,6 +55,16 @@ export default function App() {
         document.addEventListener('visibilitychange', heartbeat);
         return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', heartbeat); };
     }, [user?.id]);
+    useEffect(() => {
+        if (!profileOpen) return;
+        const outside = (event: MouseEvent) => {
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) setProfileOpen(false);
+        };
+        const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setProfileOpen(false); };
+        document.addEventListener('mousedown', outside);
+        document.addEventListener('keydown', escape);
+        return () => { document.removeEventListener('mousedown', outside); document.removeEventListener('keydown', escape); };
+    }, [profileOpen]);
     const go = (p: string, options: Any = {}) => { if (sessionActive.current && !confirm('Leave this session? The unfinished result will not be saved.'))
         return; sessionActive.current = false; setPracticeOptions(options); setPage(p); location.hash = p; window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); };
     const toggleTheme = () => { const next = theme === 'light' ? 'dark' : 'light'; setTheme(next); if (user)
@@ -79,7 +90,7 @@ export default function App() {
         notify(e.message);
     } };
     const isTyping = ['home', 'practice', 'test', 'punctuation', 'numbers', 'custom', 'mistakes'].includes(page);
-    return <div className="app simple-app"><header className="header"><div className="header-inner"><a className="brand" href="#home" onClick={e => { e.preventDefault(); go('home'); }} aria-label="Keyderby home"><span className="brand-mark"><Keyboard size={22}/></span>keyderby</a><nav className="desktop-nav" aria-label="Main navigation">{[['home', 'Practice'], ['race', 'Race'], ['leaderboard', 'Rankings'], ['dashboard', 'Progress']].map(([p, label]) => <a href={'#' + p} className={(page === p || (p === 'home' && ['practice', 'test'].includes(page))) ? 'active' : ''} onClick={e => { e.preventDefault(); go(p); }} key={p}>{label}</a>)}</nav><div className="header-actions"><div className="profile-menu">
+    return <div className="app simple-app"><header className="header"><div className="header-inner"><a className="brand" href="#home" onClick={e => { e.preventDefault(); go('home'); }} aria-label="Keyderby home"><span className="brand-mark"><Keyboard size={22}/></span>keyderby</a><nav className="desktop-nav" aria-label="Main navigation">{[['home', 'Practice'], ['race', 'Race'], ['leaderboard', 'Rankings'], ['dashboard', 'Progress']].map(([p, label]) => <a href={'#' + p} className={(page === p || (p === 'home' && ['practice', 'test'].includes(page))) ? 'active' : ''} onClick={e => { e.preventDefault(); go(p); }} key={p}>{label}</a>)}</nav><div className="header-actions"><div className="profile-menu" ref={profileMenuRef}>
   <button className="profile-button" type="button" aria-haspopup="true" aria-expanded={profileOpen} aria-label="Open profile menu" disabled={!user} onClick={() => setProfileOpen(open => !open)}>
     {user && !user.guest ? <><span className="mini-avatar">{user.name[0]}</span><span className="profile-menu-name">{user.name}</span>{user.settings.countryCode && <span className="profile-country-flag" title={countryName(user.settings.countryCode)}>{countryFlag(user.settings.countryCode)}</span>}</> : <>Add your name<Plus size={14}/></>}<ChevronDown size={15}/>
   </button>
