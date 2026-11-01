@@ -2,6 +2,17 @@
 
 A minimal typing website with graphite, white and teal styling. Open it and type; a name-only profile gets an automatic ID. There is no application login, email/password requirement, platform administrator, privileged role or management interface.
 
+Created by **Md. Emon Hossain**.
+
+## How to use Keyderby
+
+1. Open the website and choose **Practice** or **Timed test**. Select Easy, Medium or Difficult, a passage, and a 15–300 second timer. Press **Start practice** and begin typing. The timer starts on your first keystroke.
+2. Watch your live WPM, accuracy, remaining time and car progress. When time ends, your result is saved automatically. **Progress** shows your previous results.
+3. Open **3,000 passages** to browse or search the full library. Every passage has a title, difficulty and number such as E0001. Choose **Practice this passage** to type it.
+4. For a public match, open **Race** and press **Enter race**. You join a pool of 2–5 real players automatically; after another person joins, a shared countdown starts. Everyone types the same passage for 60 seconds.
+5. To race friends, choose **Race → With friends**. One player creates a private room and shares its code or invite link. Friends join, mark themselves ready, and the room creator starts the timed race.
+6. Click **Add your name** to save a display name. Keyderby creates your ID automatically and remembers your progress in this browser. No sign-in is required. An optional recovery code under Profile can help restore your profile on another browser.
+
 ## What works
 
 - 3,000 unique passages: 1,000 Easy, 1,000 Medium and 1,000 Difficult. Each has a stable code, title, source and difficulty.
