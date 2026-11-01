@@ -90,7 +90,7 @@ export default function App() {
     <button type="button" onClick={() => { setProfileOpen(false); go('settings'); }}><Settings size={16}/>Settings & ranking privacy</button>
     <button type="button" onClick={() => { toggleTheme(); setProfileOpen(false); }}>{theme === 'light' ? <Moon size={16}/> : <Sun size={16}/>}{theme === 'light' ? 'Enable dark mode' : 'Enable light mode'}</button>
   </div>}
-</div></div></header>
+</div></div></div></header>
  <nav className="mobile-core-nav" aria-label="Mobile navigation">{[['home', 'Practice'], ['race', 'Race'], ['leaderboard', 'Rankings'], ['dashboard', 'Progress']].map(([p, l]) => <a className={page === p ? 'active' : ''} href={'#' + p} onClick={e => { e.preventDefault(); go(p); }} key={p}>{l}</a>)}</nav>
  <main className="main" id="main-content">{loadError && <div className="alert">{loadError}<button onClick={refresh}>Try again</button></div>}
  {!user && !loadError && <Empty icon={Keyboard} title="Preparing your typing session…" desc="Your passage will appear in a moment."/>}{user && <>
