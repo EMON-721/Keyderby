@@ -1,6 +1,6 @@
 # Keyderby
 
-A minimal typing website with graphite, white and teal styling. Open it and type; a name-only profile gets an automatic ID. There is no application login, email/password requirement, platform administrator, privileged role or management interface.
+A minimal typing website with graphite, white and teal styling. Open it and type; a name-only profile gets a readable, automatically assigned driver ID such as `KD-000001`. There is no application login, email/password requirement, platform administrator, privileged role or management interface.
 
 Created by **Md. Emon Hossain**.
 
@@ -11,7 +11,7 @@ Created by **Md. Emon Hossain**.
 3. Open **3,000 passages** to browse or search the full library. Every passage has a title, difficulty and number such as E0001. Choose **Practice this passage** to type it.
 4. For a public match, open **Race** and press **Enter race**. You join a pool of 2–5 real players automatically; after another person joins, a shared countdown starts. Everyone types the same passage for 60 seconds.
 5. To race friends, choose **Race → With friends**. One player creates a private room and shares its code or invite link. Friends join, mark themselves ready, and the room creator starts the timed race.
-6. Click **Add your name** to save a display name. Keyderby creates your ID automatically and remembers your progress in this browser. No sign-in is required. An optional recovery code under Profile can help restore your profile on another browser.
+6. Click **Add your name** to save a display name. Keyderby automatically assigns a readable, permanent driver ID such as `KD-000001` and remembers your progress in this browser. No sign-in is required. An optional recovery code under Profile can help restore your profile on another browser.
 
 ## What works
 
@@ -20,7 +20,7 @@ Created by **Md. Emon Hossain**.
 - Live corrected WPM, accuracy, character feedback, car progress and private saved results.
 - **Race → Enter race** automatically joins a public pool of 2–5 real players. A second player starts a 12 second joining window; a full grid shortens the countdown. Public races last 60 seconds and need no room creator or host action.
 - **Race → Friends** creates or joins an invite-only room, with a selected timer and shared start. Its host is an ordinary participant with control of that one room.
-- Private custom text, timed tests, personal progress, worldwide opt-in Top 23 rankings and optional profile recovery.
+- Private custom text, timed tests, personal progress, worldwide opt-in Top 20 rankings and optional profile recovery.
 
 ## Run locally
 
@@ -65,23 +65,27 @@ The generated config supplies the `DB` binding. Adding an unrelated D1 database 
 
 No automatic production deployment is configured in GitHub. Contributions and forks cannot change an already deployed Worker. Only authorized repository and Cloudflare account actions can publish a new version. Keep write/deployment access restricted and review changes before deploying. Netlify would require a separate server/database adapter; the current production target is Cloudflare Workers/D1.
 
+## Website layout and profile controls
+
+The public footer contains only a centered copyright/creator line. The Typing guide, Privacy and Text sources *footer links* have been removed without deleting the underlying source attribution files. The top navigation remains Practice, Race, Rankings, Progress. Settings and appearance/dark mode are inside the profile dropdown for every user, including guests.
+
 ## Global rankings and online users
 
 - The former **Words** navigation and its vocabulary/repeat-word module have been removed. Practice, Race, Rankings and Progress remain in the top navigation; the passage library is available from Practice.
-- **Rankings** presents up to **23 real, qualifying users**, never fabricated entries. Filter by standard practice, timed tests, or race; time period; difficulty; and duration. The global board accepts players worldwide.
-- Only named users who explicitly turn on public ranking visibility in **Settings → Global rankings & privacy** appear. This consent also permits their recent online status and optional, self-reported country to appear. Hidden or guest profiles are never listed. Online means a visible browser has contacted the server in the past two minutes, not a guaranteed persistent connection.
+- **Rankings** presents up to **20 real, qualifying users**, never fabricated entries. Filter by standard practice, timed tests, or race; time period; difficulty; and duration. The global board accepts players worldwide.
+- Only named users who explicitly turn on public ranking visibility in **Settings → Global rankings & privacy** appear. This consent also permits their recent online status, aggregate practice time/session count and optional, self-reported country plus flag to appear. Hidden or guest profiles are never listed. Online means a visible browser has contacted the server in the past two minutes, not a guaranteed persistent connection.
 - Rankings show the best corrected WPM and average accuracy for the selected mode/difficulty/duration/period, plus each opted-in user's all-time number of completed standard practice/test/race sessions and total minutes. Qualifying attempts need 150+ typed characters, at least 15 seconds, 90%+ accuracy, and a completed timer, with existing speed and integrity checks. Old practice results recorded before the eligibility rule changed may not qualify retroactively.
-- The service records an activity timestamp for presence. Countries are not inferred from IP addresses or automatically geolocated. A separate D1 migration adds the activity column and is applied via `pnpm cloudflare:migrate` before deploying this version.
+- The service records an activity timestamp for presence. Countries and flags come from an optional ISO country/territory selector; the service never infers location from IP addresses. D1 migrations add the activity column and readable ID allocation with append-only backfilling. Apply with `pnpm cloudflare:migrate` before deploying this version. Existing internal random IDs and recovery credentials remain unchanged.
 
 ## Profiles and privacy
 
-The server silently creates a random 256-bit browser session, stores only its hash and sets an HttpOnly, SameSite cookie (Secure over HTTPS). A display name preserves the same profile and automatic public ID; an ID is never an authentication credential. Personal requests derive ownership from the server session. Recovery codes are optional, random and stored hashed. Without the browser session or a saved recovery code, an older profile may not be recoverable.
+Each user gets a sequential public label (not a login credential), backed by a separate, random internal identifier. The server silently creates a random 256-bit browser session, stores only its hash and sets an HttpOnly, SameSite cookie (Secure over HTTPS). A display name preserves the same profile and automatic public ID; an ID is never an authentication credential. Personal requests derive ownership from the server session. Recovery codes are optional, random and stored hashed. Without the browser session or a saved recovery code, an older profile may not be recoverable.
 
 Users can change their own name/preferences, export their own data and delete their profile. Results and rankings respect privacy settings. Private custom text is removed from completed analytics. See [security notes](SECURITY.md) for the threat model and limits.
 
 ## Passage provenance
 
-The actual corpus contains 60 original passages and 2,940 classical excerpts. Full source editions, notices, URLs and hashes remain in `public/sources`; the website links to them. These works are catalogued as public domain in the USA; this does not assert worldwide copyright clearance.
+The actual corpus contains 60 original passages and 2,940 classical excerpts. Full source editions, notices, URLs and hashes remain in `public/sources`; individual passage notices and accessible source files preserve provenance. These works are catalogued as public domain in the USA; this does not assert worldwide copyright clearance.
 
 ```bash
 node scripts/generate-content.mjs
@@ -101,6 +105,7 @@ pnpm content:validate
 pnpm build
 pnpm test:integration
 pnpm audit --prod
+pnpm security:scan
 ```
 
 The integration suite runs the compiled Worker with disposable Miniflare/D1 storage. It verifies automatic content initialization, name-only profiles, ownership, recovery, finite timers, deadline enforcement, scoring, private rooms, public matching, capacity/countdowns, opt-out, CSRF/body validation and blocked private paths. No real users are used in these tests. GitHub CI runs these checks without deployment credentials.
