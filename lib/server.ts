@@ -25,4 +25,4 @@ export async function limited(key: string, max = 60) {
     if (Math.random() < .01)
         await run('DELETE FROM limits WHERE reset<?', Date.now());
 }
-export function publicUser(u: any) { return { id: u.id, name: u.name, username: u.username, created: u.created, guest: !!u.guest, settings: JSON.parse(u.settings || '{}') }; }
+export function publicUser(u: any) { return { id: u.id, publicId: u.public_id, name: u.name, username: u.username, created: u.created, guest: !!u.guest, settings: JSON.parse(u.settings || '{}') }; }
