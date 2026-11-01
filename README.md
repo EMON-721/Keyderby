@@ -67,7 +67,7 @@ No automatic production deployment is configured in GitHub. Contributions and fo
 
 ## Website layout and profile controls
 
-The public footer contains only a centered copyright/creator line. The Typing guide, Privacy and Text sources *footer links* have been removed without deleting the underlying source attribution files. The top navigation remains Practice, Race, Rankings, Progress. Settings and appearance/dark mode are inside the profile dropdown for every user, including guests.
+The public footer contains only a centered copyright/creator line. The Typing guide, Privacy and Text sources *footer links* have been removed without deleting the underlying source attribution files. The top navigation shows only **Practice, Race, Rankings**. **My progress**, settings and appearance/dark mode are inside the profile dropdown for every user, including guests; saved progress data remains available. The Practice page no longer shows the 3,000-passages shortcut or inline book/source/license accordion beneath the passage. Passage content and source/license records remain available in the repository and published `/sources/` files.
 
 ## Global rankings and online users
 
