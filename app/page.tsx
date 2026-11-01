@@ -85,7 +85,7 @@ export default function App() {
  {page === 'sources' && <Sources />}
  {page === 'info' && <InfoPage topic={info} go={go} notify={notify}/>}
  </>}
- </main><footer className="quiet-footer"><span>© {new Date().getFullYear()} Keyderby</span><div><button onClick={() => { setInfo('Typing guide'); go('info'); }}>Typing guide</button><button onClick={() => { setInfo('Privacy policy'); go('info'); }}>Privacy</button><button onClick={() => go('sources')}>Text sources</button></div></footer>
+ </main><footer className="quiet-footer"><span>© {new Date().getFullYear()} Keyderby · Created by Md. Emon Hossain</span><div><button onClick={() => { setInfo('Typing guide'); go('info'); }}>Typing guide</button><button onClick={() => { setInfo('Privacy policy'); go('info'); }}>Privacy</button><button onClick={() => go('sources')}>Text sources</button></div></footer>
  {modal && <ProfileModal mode={modal} close={() => setModal('')} user={user} refresh={refresh} notify={notify} onCreated={(code: string) => setRecoveryKey(code)}/>}
  {toast && <div className="toast" role="status"><Info size={17}/>{toast}<button aria-label="Dismiss notification" onClick={() => setToast('')}><X size={14}/></button></div>}
  </div>;
