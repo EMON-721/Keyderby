@@ -23,3 +23,4 @@ jobs:
       - run: pnpm build
       - run: pnpm test:integration
       - run: pnpm audit --prod
+      - run: pnpm security:scan
