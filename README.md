@@ -118,3 +118,11 @@ Race progress uses one-second polling, not WebSockets. Scoring is computed on th
 - `db/schema.ts`, `drizzle/`: current schema and immutable migrations.
 - `content/`, `public/sources/`: real passage corpus, source editions and licenses.
 - `tests/`, `docs/`: reproducible checks and deployment instructions.
+
+<!-- DEPLOYMENT LINKS: maintained for GitHub repository navigation -->
+## Website & repository links
+
+- **Source repository:** https://github.com/EMON-721/Keyderby
+- **Website:** No independently confirmed public deployment URL available. A link will be added only after its address is established.
+
+<!-- END DEPLOYMENT LINKS -->
