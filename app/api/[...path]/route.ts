@@ -8,7 +8,7 @@ import { score, chars, badges } from '../../../lib/scoring';
 export const dynamic = 'force-dynamic';
 const fail = (message: string, status = 400) => Response.json({ error: message }, { status });
 const clean = (x: any, n = 100) => String(x ?? '').trim().slice(0, n);
-const settingsAllowed = (s: any) => ({ theme: ['light', 'dark'].includes(s.theme) ? s.theme : 'light', font: ['mono', 'sans', 'serif'].includes(s.font) ? s.font : 'mono', fontSize: Math.max(16, Math.min(36, Number(s.fontSize) || 23)), lineHeight: Math.max(1.4, Math.min(2.5, Number(s.lineHeight) || 1.9)), visibility: ['public', 'private'].includes(s.visibility) ? s.visibility : 'private', sound: !!s.sound, animation: s.animation !== false, strict: !!s.strict, noBackspace: !!s.noBackspace, leaderboard: !!s.leaderboard, track: ['City Highway', 'Mountain Pass', 'Midnight Run', 'Desert Road'].includes(s.track) ? s.track : 'City Highway' });
+const settingsAllowed = (s: any) => ({ theme: ['light', 'dark'].includes(s.theme) ? s.theme : 'light', font: ['mono', 'sans', 'serif'].includes(s.font) ? s.font : 'mono', fontSize: Math.max(16, Math.min(36, Number(s.fontSize) || 23)), lineHeight: Math.max(1.4, Math.min(2.5, Number(s.lineHeight) || 1.9)), visibility: ['public', 'private'].includes(s.visibility) ? s.visibility : 'private', sound: !!s.sound, animation: s.animation !== false, strict: !!s.strict, noBackspace: !!s.noBackspace, leaderboard: !!s.leaderboard, country: typeof s.country === 'string' && /^[\p{L}\p{M} .'-]{2,56}$/u.test(s.country.trim()) ? s.country.trim() : '', track: ['City Highway', 'Mountain Pass', 'Midnight Run', 'Desert Road'].includes(s.track) ? s.track : 'City Highway' });
 const cookie = (t: string, req: Request) => `kd_session=${t}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${new URL(req.url).protocol === 'https:' ? '; Secure' : ''}`;
 const withPassageLabel=(value:any)=>({...value,...labelFor(value.passage_id)});
 async function passageDetails(id:string){const p=await one('SELECT * FROM passages WHERE id=?',id);return p?{...p,...metadata(p)}:null}
@@ -18,6 +18,7 @@ async function handler(req: Request) {
     if(method!=='GET')validateOrigin(req);
     const body:any=method==='GET'?{}:await readJson(req);
     await limited('ip:' + await hash(req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for') || 'local'), 1500);
+    if (u) await run('UPDATE users SET last_active=? WHERE id=? AND last_active<?', Date.now(), u.id, Date.now() - 30000);
     if (p[0] === 'bootstrap') {
         if(method!=='GET')return fail('Method not allowed.',405);
         await ensureCorpus();
@@ -43,6 +44,10 @@ async function handler(req: Request) {
     if (!u)
         return fail('Your session expired. Refresh to start again.', 401);
     await limited('user:' + u.id, 180);
+    if (p[0] === 'presence') {
+        if (method !== 'GET') return fail('Method not allowed.', 405);
+        return Response.json({ ok: true });
+    }
     if (p[0] === 'profile') {
         if (method === 'GET')
             return Response.json({ user: publicUser(u) });
@@ -94,7 +99,7 @@ async function handler(req: Request) {
     }
     if (p[0] === 'attempts') {
         if (method === 'POST' && !p[1]) {
-            const mode = ['practice', 'test', 'vocabulary', 'punctuation', 'numbers', 'challenge', 'custom', 'race', 'mistakes'].includes(body.mode) ? body.mode : 'practice';
+            const mode = ['practice', 'test', 'punctuation', 'numbers', 'challenge', 'custom', 'race', 'mistakes'].includes(body.mode) ? body.mode : 'practice';
             let passage = body.passageId ? await one("SELECT * FROM passages WHERE id=? AND status='published'", body.passageId) : null;
             const duration = [15, 30, 60, 120, 300].includes(Number(body.duration)) ? Number(body.duration) : 60;
             let room = null;
@@ -118,7 +123,7 @@ async function handler(req: Request) {
                 text = clean(body.text, 10000);
                 title = 'Private custom text';
             }
-            if (['vocabulary', 'numbers', 'punctuation', 'mistakes'].includes(mode)) {
+            if (['numbers', 'punctuation', 'mistakes'].includes(mode)) {
                 const sets: any = { common: 'time people work day way life world hand place home point part country school state family friend story water book light room small learn share make write', academic: 'analysis evidence hypothesis framework methodology significant evaluate interpret establish coherent derive assess empirical inference perspective consequence parameter', advanced: 'accommodate conscientious entrepreneur indispensable miscellaneous perseverance pronunciation questionnaire rhythm silhouette supersede threshold ubiquitous', technology: 'algorithm architecture asynchronous authentication bandwidth cache compilation concurrency database encryption interface latency protocol repository', punctuation: 'Wait, listen. "Is it ready?" Yes! (Check twice); then: start. It\'s time - let\'s go.', numbers: '8:30 42 17.5 100% $24.99 2026 3+7=10 9/12 1,024 0.75 64%' };
                 let words = String(sets[body.category] || sets[mode] || sets.common).split(' ');
                 if (mode === 'mistakes') {
@@ -134,7 +139,7 @@ async function handler(req: Request) {
                     if (!words.length)
                         return fail('No saved word mistakes yet. Complete a practice session first.');
                 }
-                if (body.repeatWord) {
+                if (mode === 'mistakes' && body.repeatWord) {
                     const w = clean(body.repeatWord, 50);
                     if (!/^[\p{L}\p{N}'-]+$/u.test(w))
                         return fail('Enter a single word to repeat.');
@@ -200,7 +205,7 @@ async function handler(req: Request) {
             if(a.room_id&&!timedOut&&typed!==a.snapshot)return fail('Complete the passage exactly or wait for the timer.',400);
             if(a.room_id&&s.raw>300)return fail('This race speed could not be verified.',400);
             const settings = JSON.parse(u.settings || '{}');
-            const eligible = (!u.guest && settings.leaderboard && settings.visibility === 'public' && count >= 150 && seconds >= 15 && s.accuracy >= 90 && s.raw <= 300 && ['test', 'race', 'challenge'].includes(a.mode) && !settings.noBackspace && !settings.strict && (!a.duration || elapsed >= a.duration - .5)) ? 1 : 0;
+            const eligible = (!u.guest && settings.leaderboard && settings.visibility === 'public' && count >= 150 && seconds >= 15 && s.accuracy >= 90 && s.raw <= 300 && ['practice', 'test', 'race', 'challenge'].includes(a.mode) && !settings.noBackspace && !settings.strict && (!a.duration || elapsed >= a.duration - .5)) ? 1 : 0;
             await run('UPDATE attempts SET finished=?,typed=?,wpm=?,raw=?,accuracy=?,first_accuracy=?,errors=?,corrected=?,elapsed=?,eligible=?,mistakes=? WHERE id=? AND finished IS NULL', Date.now(), a.mode === 'custom' ? '[private text omitted]' : typed, s.wpm, s.raw, s.accuracy, s.firstAccuracy, s.errors, s.corrected, seconds, eligible, JSON.stringify(a.mode === 'custom' ? [] : s.mistakes), a.id);
             if (a.mode === 'custom')
                 await run("UPDATE attempts SET snapshot='[private text omitted]' WHERE id=?", a.id);
@@ -235,17 +240,29 @@ async function handler(req: Request) {
         return Response.json({ ok: true });
     }
     if (p[0] === 'leaderboard') {
-        let since = 0;
-        const period = url.searchParams.get('period') || 'weekly';
-        if (period === 'daily')
-            since = Date.now() - 86400000;
-        if (period === 'weekly')
-            since = Date.now() - 7 * 86400000;
-        if (period === 'monthly')
-            since = Date.now() - 30 * 86400000;
-        const diff = url.searchParams.get('difficulty') || 'easy';
-        const duration = Number(url.searchParams.get('duration')) || 60;
-        return Response.json({ entries: await query("SELECT users.id,users.name,MAX(attempts.wpm) wpm,AVG(attempts.accuracy) accuracy,count(*) sessions FROM attempts JOIN users ON users.id=attempts.user_id WHERE eligible=1 AND users.status='active' AND json_extract(users.settings,'$.leaderboard')=1 AND json_extract(users.settings,'$.visibility')='public' AND attempts.finished>? AND attempts.difficulty=? AND attempts.duration=? AND attempts.mode='test' GROUP BY users.id ORDER BY wpm DESC LIMIT 50", since, diff, duration), period, difficulty: diff, duration });
+        if (method !== 'GET') return fail('Method not allowed.', 405);
+        const period = ['daily', 'weekly', 'monthly', 'all'].includes(url.searchParams.get('period') || '') ? url.searchParams.get('period')! : 'all';
+        const since = period === 'daily' ? Date.now() - 86400000 : period === 'weekly' ? Date.now() - 7 * 86400000 : period === 'monthly' ? Date.now() - 30 * 86400000 : 0;
+        const difficulty = ['easy', 'medium', 'hard'].includes(url.searchParams.get('difficulty') || '') ? url.searchParams.get('difficulty')! : 'easy';
+        const duration = [15, 30, 60, 120, 300].includes(Number(url.searchParams.get('duration'))) ? Number(url.searchParams.get('duration')) : 60;
+        const mode = ['all', 'practice', 'test', 'race'].includes(url.searchParams.get('mode') || '') ? url.searchParams.get('mode')! : 'all';
+        const cutoff = Date.now() - 120000;
+        const publicFilter = "users.status='active' AND users.guest=0 AND json_extract(users.settings,'$.leaderboard')=1 AND json_extract(users.settings,'$.visibility')='public'";
+        const entries = await query(
+          `SELECT users.name, CASE WHEN json_valid(users.settings) THEN json_extract(users.settings,'$.country') ELSE NULL END country,
+            MAX(a.wpm) wpm, AVG(a.accuracy) accuracy, COUNT(*) sessions, ROUND(SUM(a.elapsed)/60.0,1) minutes,
+            CASE WHEN users.last_active>? THEN 1 ELSE 0 END online
+          FROM attempts a JOIN users ON users.id=a.user_id
+          WHERE a.eligible=1 AND ${publicFilter} AND a.finished>? AND a.difficulty=? AND a.duration=?
+            AND a.mode IN ('practice','test','race') AND (?='all' OR a.mode=?)
+          GROUP BY users.id ORDER BY wpm DESC, accuracy DESC, sessions DESC LIMIT 23`,
+          cutoff, since, difficulty, duration, mode, mode);
+        const onlineUsers = await query(
+          `SELECT users.name, CASE WHEN json_valid(users.settings) THEN json_extract(users.settings,'$.country') ELSE NULL END country
+           FROM users WHERE ${publicFilter} AND users.last_active>? ORDER BY users.last_active DESC LIMIT 23`, cutoff);
+        return Response.json({ entries, onlineUsers, onlineCount: (await one(
+          `SELECT count(*) n FROM users WHERE ${publicFilter} AND users.last_active>?`, cutoff)).n,
+          period, difficulty, duration, mode, maxRank: 23, onlineWindowSeconds: 120 });
     }
     if(p[0]==='matchmaking'){
       if(method!=='POST')return fail('Method not allowed.',405);
