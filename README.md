@@ -20,7 +20,7 @@ Created by **Md. Emon Hossain**.
 - Live corrected WPM, accuracy, character feedback, car progress and private saved results.
 - **Race → Enter race** automatically joins a public pool of 2–5 real players. A second player starts a 12 second joining window; a full grid shortens the countdown. Public races last 60 seconds and need no room creator or host action.
 - **Race → Friends** creates or joins an invite-only room, with a selected timer and shared start. Its host is an ordinary participant with control of that one room.
-- Private custom text, focused word practice, daily tests, personal progress and optional profile recovery.
+- Private custom text, timed tests, personal progress, worldwide opt-in Top 23 rankings and optional profile recovery.
 
 ## Run locally
 
@@ -64,6 +64,14 @@ For a Worker connected to the GitHub `main` branch, use **Workers & Pages → ke
 The generated config supplies the `DB` binding. Adding an unrelated D1 database as a runtime text variable will not fix it. For database IDs, commands and first-run verification see [the deployment guide](docs/CLOUDFLARE.md). Do not commit credentials or local database contents to GitHub.
 
 No automatic production deployment is configured in GitHub. Contributions and forks cannot change an already deployed Worker. Only authorized repository and Cloudflare account actions can publish a new version. Keep write/deployment access restricted and review changes before deploying. Netlify would require a separate server/database adapter; the current production target is Cloudflare Workers/D1.
+
+## Global rankings and online users
+
+- The former **Words** navigation and its vocabulary/repeat-word module have been removed. Practice, Race, Rankings and Progress remain in the top navigation; the passage library is available from Practice.
+- **Rankings** presents up to **23 real, qualifying users**, never fabricated entries. Filter by standard practice, timed tests, or race; time period; difficulty; and duration. The global board accepts players worldwide.
+- Only named users who explicitly turn on public ranking visibility in **Settings → Global rankings & privacy** appear. This consent also permits their recent online status and optional, self-reported country to appear. Hidden or guest profiles are never listed. Online means a visible browser has contacted the server in the past two minutes, not a guaranteed persistent connection.
+- Rankings show the best corrected WPM, average accuracy, qualifying sessions and total time for the selected mode/difficulty/duration/period. Qualifying attempts need 150+ typed characters, at least 15 seconds, 90%+ accuracy, and a completed timer, with existing speed and integrity checks. Old practice results recorded before the eligibility rule changed may not qualify retroactively.
+- The service records an activity timestamp for presence. Countries are not inferred from IP addresses or automatically geolocated. A separate D1 migration adds the activity column and is applied via `pnpm cloudflare:migrate` before deploying this version.
 
 ## Profiles and privacy
 
