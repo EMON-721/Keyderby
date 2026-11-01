@@ -36,6 +36,13 @@
       "when": 1793539537651,
       "tag": "0004_broad_hobgoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793565000000,
+      "tag": "0005_global_rankings_presence",
+      "breakpoints": true
     }
   ]
 }
