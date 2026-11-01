@@ -124,8 +124,8 @@ async function handler(req: Request) {
                 title = 'Private custom text';
             }
             if (['numbers', 'punctuation', 'mistakes'].includes(mode)) {
-                const sets: any = { common: 'time people work day way life world hand place home point part country school state family friend story water book light room small learn share make write', academic: 'analysis evidence hypothesis framework methodology significant evaluate interpret establish coherent derive assess empirical inference perspective consequence parameter', advanced: 'accommodate conscientious entrepreneur indispensable miscellaneous perseverance pronunciation questionnaire rhythm silhouette supersede threshold ubiquitous', technology: 'algorithm architecture asynchronous authentication bandwidth cache compilation concurrency database encryption interface latency protocol repository', punctuation: 'Wait, listen. "Is it ready?" Yes! (Check twice); then: start. It\'s time - let\'s go.', numbers: '8:30 42 17.5 100% $24.99 2026 3+7=10 9/12 1,024 0.75 64%' };
-                let words = String(sets[body.category] || sets[mode] || sets.common).split(' ');
+                const sets: any = { punctuation: 'Wait, listen. "Is it ready?" Yes! (Check twice); then: start. It\\'s time - let\\'s go.', numbers: '8:30 42 17.5 100% $24.99 2026 3+7=10 9/12 1,024 0.75 64%' };
+                let words = String(sets[mode] || '').split(' ');
                 if (mode === 'mistakes') {
                     const rs = await query('SELECT snapshot,typed FROM attempts WHERE user_id=? AND finished IS NOT NULL ORDER BY finished DESC LIMIT 20', u.id);
                     words = [];
@@ -139,14 +139,8 @@ async function handler(req: Request) {
                     if (!words.length)
                         return fail('No saved word mistakes yet. Complete a practice session first.');
                 }
-                if (mode === 'mistakes' && body.repeatWord) {
-                    const w = clean(body.repeatWord, 50);
-                    if (!/^[\p{L}\p{N}'-]+$/u.test(w))
-                        return fail('Enter a single word to repeat.');
-                    words = Array(Math.max(5, Math.min(50, Number(body.repetitions) || 10))).fill(w);
-                }
                 text = Array.from({ length: mode === 'punctuation' ? 4 : 4 }, () => words.join(' ')).join(' ');
-                title = mode === 'mistakes' ? 'Your mistake practice' : mode === 'numbers' ? 'Numbers & symbols' : mode === 'punctuation' ? 'Punctuation pit stop' : 'Vocabulary sprint';
+                title = mode === 'mistakes' ? 'Your mistake practice' : mode === 'numbers' ? 'Numbers & symbols' : 'Punctuation pit stop';
             }
             if (!text)
                 return fail('Choose a passage to begin.');
