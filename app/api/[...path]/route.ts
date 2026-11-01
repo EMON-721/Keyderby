@@ -5,10 +5,11 @@ import {readJson,validateOrigin,HttpFailure,secureResponse} from '../../../lib/h
 import {labelFor} from '../../../lib/passage-labels';
 import { metadata } from '../../../lib/content';
 import { score, chars, badges } from '../../../lib/scoring';
+import { isCountryCode } from '../../../lib/countries';
 export const dynamic = 'force-dynamic';
 const fail = (message: string, status = 400) => Response.json({ error: message }, { status });
 const clean = (x: any, n = 100) => String(x ?? '').trim().slice(0, n);
-const settingsAllowed = (s: any) => ({ theme: ['light', 'dark'].includes(s.theme) ? s.theme : 'light', font: ['mono', 'sans', 'serif'].includes(s.font) ? s.font : 'mono', fontSize: Math.max(16, Math.min(36, Number(s.fontSize) || 23)), lineHeight: Math.max(1.4, Math.min(2.5, Number(s.lineHeight) || 1.9)), visibility: ['public', 'private'].includes(s.visibility) ? s.visibility : 'private', sound: !!s.sound, animation: s.animation !== false, strict: !!s.strict, noBackspace: !!s.noBackspace, leaderboard: !!s.leaderboard, country: typeof s.country === 'string' && /^[\p{L}\p{M} .'-]{2,56}$/u.test(s.country.trim()) ? s.country.trim() : '', track: ['City Highway', 'Mountain Pass', 'Midnight Run', 'Desert Road'].includes(s.track) ? s.track : 'City Highway' });
+const settingsAllowed = (s: any) => ({ theme: ['light', 'dark'].includes(s.theme) ? s.theme : 'light', font: ['mono', 'sans', 'serif'].includes(s.font) ? s.font : 'mono', fontSize: Math.max(16, Math.min(36, Number(s.fontSize) || 23)), lineHeight: Math.max(1.4, Math.min(2.5, Number(s.lineHeight) || 1.9)), visibility: ['public', 'private'].includes(s.visibility) ? s.visibility : 'private', sound: !!s.sound, animation: s.animation !== false, strict: !!s.strict, noBackspace: !!s.noBackspace, leaderboard: !!s.leaderboard, countryCode: isCountryCode(s.countryCode) ? s.countryCode : '', country: typeof s.country === 'string' && /^[\p{L}\p{M} .'-]{2,56}$/u.test(s.country.trim()) ? s.country.trim() : '', track: ['City Highway', 'Mountain Pass', 'Midnight Run', 'Desert Road'].includes(s.track) ? s.track : 'City Highway' });
 const cookie = (t: string, req: Request) => `kd_session=${t}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${new URL(req.url).protocol === 'https:' ? '; Secure' : ''}`;
 const withPassageLabel=(value:any)=>({...value,...labelFor(value.passage_id)});
 async function passageDetails(id:string){const p=await one('SELECT * FROM passages WHERE id=?',id);return p?{...p,...metadata(p)}:null}
@@ -27,6 +28,10 @@ async function handler(req: Request) {
             await limited('guest-create:' + await hash(req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for') || 'local'), 15);
             const id = 'KD-' + token().slice(0, 12).toUpperCase();
             await run('INSERT INTO users(id,name,created,settings,guest) VALUES(?,?,?,?,1)', id, 'Guest driver', Date.now(), JSON.stringify(settingsAllowed({})));
+            // Allocate a readable public label, not an authentication credential.
+            // Autoincrement allocation is atomic even across concurrent Workers.
+            const row = await one('INSERT INTO driver_numbers(user_id) VALUES(?) RETURNING number', id);
+            await run('UPDATE users SET public_id=? WHERE id=?', 'KD-' + String(row.number).padStart(6, '0'), id);
             sessionToken = await newSession(id);
             u = await one('SELECT * FROM users WHERE id=?', id);
         }
@@ -243,7 +248,7 @@ async function handler(req: Request) {
         const cutoff = Date.now() - 120000;
         const publicFilter = "users.status='active' AND users.guest=0 AND json_extract(users.settings,'$.leaderboard')=1 AND json_extract(users.settings,'$.visibility')='public'";
         const entries = await query(
-          `SELECT users.name, CASE WHEN json_valid(users.settings) THEN json_extract(users.settings,'$.country') ELSE NULL END country,
+          `SELECT users.public_id publicId, users.name, CASE WHEN json_valid(users.settings) THEN json_extract(users.settings,'$.country') ELSE NULL END country, CASE WHEN json_valid(users.settings) THEN json_extract(users.settings,'$.countryCode') ELSE NULL END countryCode,
             MAX(a.wpm) wpm, AVG(a.accuracy) accuracy, COUNT(*) qualifying_sessions,
             (SELECT COUNT(*) FROM attempts activity WHERE activity.user_id=users.id AND activity.finished IS NOT NULL AND activity.mode IN ('practice','test','race')) sessions,
             (SELECT COALESCE(ROUND(SUM(activity.elapsed)/60.0,1),0) FROM attempts activity WHERE activity.user_id=users.id AND activity.finished IS NOT NULL AND activity.mode IN ('practice','test','race')) minutes,
@@ -251,14 +256,14 @@ async function handler(req: Request) {
           FROM attempts a JOIN users ON users.id=a.user_id
           WHERE a.eligible=1 AND ${publicFilter} AND a.finished>? AND a.difficulty=? AND a.duration=?
             AND a.mode IN ('practice','test','race') AND (?='all' OR a.mode=?)
-          GROUP BY users.id ORDER BY wpm DESC, accuracy DESC, sessions DESC LIMIT 23`,
+          GROUP BY users.id ORDER BY wpm DESC, accuracy DESC, sessions DESC LIMIT 20`,
           cutoff, since, difficulty, duration, mode, mode);
         const onlineUsers = await query(
-          `SELECT users.name, CASE WHEN json_valid(users.settings) THEN json_extract(users.settings,'$.country') ELSE NULL END country
-           FROM users WHERE ${publicFilter} AND users.last_active>? ORDER BY users.last_active DESC LIMIT 23`, cutoff);
+          `SELECT users.public_id publicId, users.name, CASE WHEN json_valid(users.settings) THEN json_extract(users.settings,'$.country') ELSE NULL END country, CASE WHEN json_valid(users.settings) THEN json_extract(users.settings,'$.countryCode') ELSE NULL END countryCode
+           FROM users WHERE ${publicFilter} AND users.last_active>? ORDER BY users.last_active DESC LIMIT 20`, cutoff);
         return Response.json({ entries, onlineUsers, onlineCount: (await one(
           `SELECT count(*) n FROM users WHERE ${publicFilter} AND users.last_active>?`, cutoff)).n,
-          period, difficulty, duration, mode, maxRank: 23, onlineWindowSeconds: 120 });
+          period, difficulty, duration, mode, maxRank: 20, onlineWindowSeconds: 120 });
     }
     if(p[0]==='matchmaking'){
       if(method!=='POST')return fail('Method not allowed.',405);
