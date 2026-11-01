@@ -124,7 +124,7 @@ async function handler(req: Request) {
                 title = 'Private custom text';
             }
             if (['numbers', 'punctuation', 'mistakes'].includes(mode)) {
-                const sets: any = { punctuation: 'Wait, listen. "Is it ready?" Yes! (Check twice); then: start. It\\'s time - let\\'s go.', numbers: '8:30 42 17.5 100% $24.99 2026 3+7=10 9/12 1,024 0.75 64%' };
+                const sets: any = { punctuation: 'Wait, listen. "Is it ready?" Yes! (Check twice); then: start. Time to go.', numbers: '8:30 42 17.5 100% $24.99 2026 3+7=10 9/12 1,024 0.75 64%' };
                 let words = String(sets[mode] || '').split(' ');
                 if (mode === 'mistakes') {
                     const rs = await query('SELECT snapshot,typed FROM attempts WHERE user_id=? AND finished IS NOT NULL ORDER BY finished DESC LIMIT 20', u.id);
