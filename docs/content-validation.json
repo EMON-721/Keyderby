@@ -1,0 +1,13 @@
+{
+  "total": 3000,
+  "counts": {
+    "easy": 1000,
+    "medium": 1000,
+    "hard": 1000
+  },
+  "uniqueTexts": 3000,
+  "structuralValidation": "passed",
+  "requiredTotal": 3000,
+  "countAndStructureComplete": true,
+  "remaining": 0
+}

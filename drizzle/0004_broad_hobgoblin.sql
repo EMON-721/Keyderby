@@ -1,0 +1,1 @@
+CREATE INDEX `rooms_matchmaking_idx` ON `rooms` (`visibility`,`state`,`created`);

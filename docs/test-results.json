@@ -1,0 +1,24 @@
+{
+  "date": "2026-11-01T13:44:07.265Z",
+  "checks": 18,
+  "passed": [
+    "Automatic 3,000-passage initialization and secure guest session",
+    "Name-only profile, automatic ID and persistent ownership",
+    "Optional recovery on a separate client",
+    "Stable passage numbers, names, direct lookup and difficulty",
+    "Finite timers, ownership checks, no pause and idempotent server scoring",
+    "Saved results stay private to their owner",
+    "Custom content is removed from completed analytics",
+    "No admin APIs, credentials or privileged session field",
+    "CSRF, spoofed forwarding header, body type/size and JSON validation",
+    "Private file paths and unused server-action POST surface are blocked",
+    "Injected role fields cannot create elevated access",
+    "Friends-only room creation, readiness, ownership and shared finite timer",
+    "Shared race passage, validated car progress and premature-finish rejection",
+    "Timer expiry saves partial race results and completes the race",
+    "Late submissions cannot add text beyond the server deadline",
+    "One-click public matching, five-player capacity, automatic countdown and rejoin",
+    "Eligible scores compare like tests and respect immediate privacy opt-out",
+    "Private APIs use no-store and security response headers"
+  ]
+}

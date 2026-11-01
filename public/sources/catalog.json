@@ -1,0 +1,74 @@
+[
+  {
+    "id": 11,
+    "title": "Alice's Adventures in Wonderland",
+    "author": "Lewis Carroll",
+    "source": "https://www.gutenberg.org/ebooks/11",
+    "file": "/sources/pg11.txt",
+    "sha256": "01b38ea4c710a84bc18d0bd41271a5a1a92b94e97b2812f4dece97d4a694725e"
+  },
+  {
+    "id": 113,
+    "title": "The Secret Garden",
+    "author": "Frances Hodgson Burnett",
+    "source": "https://www.gutenberg.org/ebooks/113",
+    "file": "/sources/pg113.txt",
+    "sha256": "6b0bb5fbd0c4e873d2d22028da9d753cf3977d5f70ac58221556b28060badbf5"
+  },
+  {
+    "id": 45,
+    "title": "Anne of Green Gables",
+    "author": "L. M. Montgomery",
+    "source": "https://www.gutenberg.org/ebooks/45",
+    "file": "/sources/pg45.txt",
+    "sha256": "89a5e9fb2e0bb44562a969785385366f94e1da736aebee7d9cdf459eb0b5f9f6"
+  },
+  {
+    "id": 514,
+    "title": "Little Women",
+    "author": "Louisa May Alcott",
+    "source": "https://www.gutenberg.org/ebooks/514",
+    "file": "/sources/pg514.txt",
+    "sha256": "36831477b339dbcd7e7206119d77e9e58b9727ef3c299d1a1dc4446e1db97850"
+  },
+  {
+    "id": 14880,
+    "title": "McGuffey\u2019s Fourth Eclectic Reader",
+    "author": "William Holmes McGuffey",
+    "source": "https://www.gutenberg.org/ebooks/14880",
+    "file": "/sources/pg14880.txt",
+    "sha256": "570c67e4777f3ca58015ebd7532573d655c88b05e32907d12ddc829e034b7d2e"
+  },
+  {
+    "id": 1342,
+    "title": "Pride and Prejudice",
+    "author": "Jane Austen",
+    "source": "https://www.gutenberg.org/ebooks/1342",
+    "file": "/sources/pg1342.txt",
+    "sha256": "3f6bb9d6f78e0293b56acd4714dd68cb7d6d1d293402031ce9d5a216bcaf9d75"
+  },
+  {
+    "id": 205,
+    "title": "Walden",
+    "author": "Henry David Thoreau",
+    "source": "https://www.gutenberg.org/ebooks/205",
+    "file": "/sources/pg205.txt",
+    "sha256": "2d9a76a2e3e8195c69430516ebd33c4d0757a53ad432ff6186b7b794e6fe99f9"
+  },
+  {
+    "id": 1228,
+    "title": "On the Origin of Species",
+    "author": "Charles Darwin",
+    "source": "https://www.gutenberg.org/ebooks/1228",
+    "file": "/sources/pg1228.txt",
+    "sha256": "362142cb7c6f90850477520cfe2a62fe423ae92ea8eb6d9cd8b30ddb39de60b9"
+  },
+  {
+    "id": 3300,
+    "title": "The Wealth of Nations",
+    "author": "Adam Smith",
+    "source": "https://www.gutenberg.org/ebooks/3300",
+    "file": "/sources/pg3300.txt",
+    "sha256": "e91d52dca43fd0fd69baf7776b00a5d8e74b69675b6b608ca8a0378aaf3ae58d"
+  }
+]

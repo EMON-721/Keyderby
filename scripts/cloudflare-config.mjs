@@ -1,0 +1,3 @@
+import fs from 'node:fs';
+const id=process.env.KEYDERBY_D1_DATABASE_ID;if(!id||!/^[a-f\d-]{36}$/i.test(id))throw new Error('Set KEYDERBY_D1_DATABASE_ID to the ID returned by wrangler d1 create keyderby. This is a database identifier, not an API token.');
+const config=JSON.parse(fs.readFileSync('dist/server/wrangler.json','utf8'));config.name='keyderby';config.d1_databases=[{binding:'DB',database_name:'keyderby',database_id:id,migrations_dir:'../../drizzle'}];config.workers_dev=true;config.assets={...config.assets,directory:'../client'};fs.writeFileSync('dist/server/wrangler.cloudflare.json',JSON.stringify(config,null,2));console.log('Prepared dist/server/wrangler.cloudflare.json for your Cloudflare account.');

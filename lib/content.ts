@@ -1,0 +1,3 @@
+import {labelFor} from './passage-labels';
+import { chars } from './scoring';
+export function metadata(p: any) { const words = p.text.trim().split(/\s+/); const letters = p.text.match(/[a-z]+/gi) || []; return { ...labelFor(p.id), characters: chars(p.text).length, language: 'en', estimatedSecondsAt40Wpm: Math.round(words.length / 40 * 60), punctuationComplexity: Math.round((p.text.match(/[^\w\s]/g) || []).length / Math.max(1, p.text.length) * 10000) / 100, vocabularyComplexity: Math.round(letters.reduce((s: number, w: string) => s + w.length, 0) / Math.max(1, letters.length) * 100) / 100, tags: [p.category, p.difficulty, p.id.startsWith('CLASSIC') ? 'Classic excerpt' : 'Original'] }; }
