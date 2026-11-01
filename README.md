@@ -51,6 +51,18 @@ pnpm cloudflare:migrate
 pnpm cloudflare:deploy
 ```
 
+## Deploy through Cloudflare Dashboard (Git-connected Worker)
+
+For a Worker connected to the GitHub `main` branch, use **Workers & Pages → keyderby → Settings → Build**. This is different from the command-line deployment above.
+
+1. In **Storage & databases → D1**, create a database named `keyderby` if it does not already exist. Copy its **database ID (UUID)**, not an account ID, API token or database name. Reuse the existing production D1 database on future deployments.
+2. Under the Worker's **Settings → Build → Build variables and secrets**, create a **build-time variable** named `KEYDERBY_D1_DATABASE_ID` with the exact UUID. Do **not** put it only in the runtime **Settings → Variables & Secrets** section: `scripts/cloudflare-config.mjs` needs it during the build.
+3. Set root directory to the repository root, production branch to `main`, **Build command** to `pnpm build && pnpm cloudflare:config`, and **Deploy command** to `pnpm cloudflare:deploy`. Do not use the default `wrangler deploy` without the generated config.
+4. **Before first use, apply the database schema** with `pnpm cloudflare:migrate` from a locally authenticated Wrangler session after `pnpm build` and `pnpm cloudflare:config` (using the same UUID). Alternatively set **Deploy command** to `pnpm cloudflare:migrate && pnpm cloudflare:deploy` **only if** the Cloudflare build token has **D1 Edit** permission in addition to Worker deploy access. Workers Builds' automatically generated tokens may lack D1 Edit.
+5. Save Build settings and **Retry deployment**. Check both the deployment success and a real practice/profile flow at the resulting workers.dev URL.
+
+The generated config supplies the `DB` binding. Adding an unrelated D1 database as a runtime text variable will not fix it. For database IDs, commands and first-run verification see [the deployment guide](docs/CLOUDFLARE.md). Do not commit credentials or local database contents to GitHub.
+
 No automatic production deployment is configured in GitHub. Contributions and forks cannot change an already deployed Worker. Only authorized repository and Cloudflare account actions can publish a new version. Keep write/deployment access restricted and review changes before deploying. Netlify would require a separate server/database adapter; the current production target is Cloudflare Workers/D1.
 
 ## Profiles and privacy
