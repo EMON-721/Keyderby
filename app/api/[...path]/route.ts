@@ -244,7 +244,9 @@ async function handler(req: Request) {
         const publicFilter = "users.status='active' AND users.guest=0 AND json_extract(users.settings,'$.leaderboard')=1 AND json_extract(users.settings,'$.visibility')='public'";
         const entries = await query(
           `SELECT users.name, CASE WHEN json_valid(users.settings) THEN json_extract(users.settings,'$.country') ELSE NULL END country,
-            MAX(a.wpm) wpm, AVG(a.accuracy) accuracy, COUNT(*) sessions, ROUND(SUM(a.elapsed)/60.0,1) minutes,
+            MAX(a.wpm) wpm, AVG(a.accuracy) accuracy, COUNT(*) qualifying_sessions,
+            (SELECT COUNT(*) FROM attempts activity WHERE activity.user_id=users.id AND activity.finished IS NOT NULL AND activity.mode IN ('practice','test','race')) sessions,
+            (SELECT COALESCE(ROUND(SUM(activity.elapsed)/60.0,1),0) FROM attempts activity WHERE activity.user_id=users.id AND activity.finished IS NOT NULL AND activity.mode IN ('practice','test','race')) minutes,
             CASE WHEN users.last_active>? THEN 1 ELSE 0 END online
           FROM attempts a JOIN users ON users.id=a.user_id
           WHERE a.eligible=1 AND ${publicFilter} AND a.finished>? AND a.difficulty=? AND a.duration=?
