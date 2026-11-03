@@ -18,6 +18,29 @@ try{
   assert.match(newPassage.displayId,/^[EMH][0-9]{4}$/);
   assert.ok(Number(newPassage.number)>1000);
   record('One thousand new passages are persisted and retrievable from D1 alongside original 3,000');
+  // This is the exact endpoint used by the live Practice / Timed test dropdown.
+  // Every published D1 row must be reachable through a metadata-only page.
+  const expectedCounts={easy:1877,medium:1123,hard:1000,mixed:4000};
+  for (const [difficulty,expectedTotal] of Object.entries(expectedCounts)) {
+    const found=new Set();
+    for (let offset=0;offset<expectedTotal;offset+=500) {
+      const response=await a('passages/options?difficulty='+difficulty+'&offset='+offset+'&limit=500');
+      assert.equal(response.r.status,200,JSON.stringify(response.d));
+      assert.equal(response.d.total,expectedTotal,'Wrong catalog total for '+difficulty);
+      assert.ok(response.d.passages.length>0&&response.d.passages.length<=500);
+      for (const item of response.d.passages) {
+        assert.ok(item.id && item.title && item.displayId && item.number);
+        assert.ok(!('text' in item),'Dropdown must not download full passage bodies');
+        assert.ok(!found.has(item.id),'Duplicate item in dropdown: '+item.id);
+        if(difficulty!=='mixed')assert.equal(item.difficulty,difficulty);
+        found.add(item.id);
+      }
+    }
+    assert.equal(found.size,expectedTotal,'Missing passage choices in '+difficulty);
+  }
+  const bounded=(await a('passages/options?difficulty=mixed&offset=0&limit=999999')).d;
+  assert.equal(bounded.passages.length,500,'Metadata page maximum must remain bounded');
+  record('All 4,000 passages available exactly once through searchable, paginated Practice and Timed test catalog');
   
  let attempt=(await a('attempts',{passageId:first.id,mode:'practice',duration:0})).d.attempt;assert.equal(attempt.duration,60);assert.equal((await b('attempts/'+attempt.id+'/start',{})).r.status,404);await a('attempts/'+attempt.id+'/start',{});assert.equal((await a('attempts/'+attempt.id+'/pause',{pause:true})).r.status,400);await sleep(600);x=await a('attempts/'+attempt.id+'/finish',{typed:'The morning lighX',strokes:18,wrong:2,wpm:99999});assert.equal(x.r.status,200,JSON.stringify(x.d));assert.equal(x.d.result.errors,1);const score=x.d.result.wpm;assert.equal((await a('attempts/'+attempt.id+'/finish',{typed:'fake',wpm:99999})).d.result.wpm,score);record('Finite timers, ownership checks, no pause and idempotent server scoring');
  assert.equal((await a('dashboard')).d.results.length,1);assert.equal((await b('dashboard')).d.results.length,0);record('Saved results stay private to their owner');
