@@ -160,6 +160,46 @@ try{
  assert.notEqual(restarted.passage.id,tail.passage.id,'Cycle boundary cannot repeat the previous passage');
  assert.equal((await db.prepare('SELECT count(*) n FROM practice_seen WHERE user_id=? AND cycle=1').bind(cycleUser).first()).n,3200);
  record('All 3,200 exhausted before cycle two, no boundary repeat, history intact');
+
+ // Exhaust every one of the 600 Public and 200 Friends passages in the
+ // isolated Miniflare D1 only; never touch the real production database.
+ for(const [pool,total] of [['public_race',600],['friends_race',200]]){
+   const count=(await db.prepare("SELECT count(*) n FROM passages WHERE pool=? AND status='published'").bind(pool).first()).n;
+   assert.equal(count,total,'Published pool size '+pool);
+   await db.prepare(`INSERT OR IGNORE INTO race_seen(pool,cycle,passage_id,request_key,assigned_at)
+     SELECT ?,1,p.id,'fixture:' || p.id,? FROM passages p
+     WHERE p.pool=? AND p.status='published'`).bind(pool,Date.now(),pool).run();
+   const full=await db.prepare("SELECT count(*) n,count(DISTINCT passage_id) unique_count FROM race_seen WHERE pool=? AND cycle=1").bind(pool).first();
+   assert.equal(full.n,total,'Full cycle assigned count '+pool);
+   assert.equal(full.unique_count,total,'No repeats within full cycle '+pool);
+   const unseen=await db.prepare(`SELECT count(*) n FROM passages p WHERE p.pool=? AND p.status='published'
+     AND NOT EXISTS(SELECT 1 FROM race_seen s WHERE s.pool=? AND s.cycle=1 AND s.passage_id=p.id)`).bind(pool,pool).first();
+   assert.equal(unseen.n,0,'Every '+pool+' passage has been assigned');
+ }
+ const friendLast=(await db.prepare("SELECT last_passage_id FROM race_cycles WHERE pool='friends_race'").first()).last_passage_id;
+ const friendRollover=await a('rooms',{name:'Cycle two friends',visibility:'private',duration:60,capacity:2});
+ assert.equal(friendRollover.r.status,200,JSON.stringify(friendRollover.d));
+ const friendNext=await db.prepare(`SELECT s.cycle,s.passage_id,p.difficulty FROM race_seen s
+   JOIN passages p ON p.id=s.passage_id WHERE s.pool='friends_race' AND s.request_key=?`).bind(friendRollover.d.id).first();
+ assert.equal(friendNext.cycle,2,'Friends advances only after exhausting 200');
+ assert.equal(friendNext.difficulty,'easy','Friends new cycle starts Easy');
+ assert.notEqual(friendNext.passage_id,friendLast,'Friends boundary cannot repeat last passage');
+ assert.equal((await db.prepare("SELECT count(*) n FROM race_seen WHERE pool='friends_race' AND cycle=1").first()).n,200);
+
+ await db.prepare("UPDATE rooms SET state='cancelled' WHERE visibility='public' AND state='waiting'").run();
+ const publicLast=(await db.prepare("SELECT last_passage_id FROM race_cycles WHERE pool='public_race'").first()).last_passage_id;
+ const publicClient=client();await publicClient('bootstrap');
+ const publicRollover=await publicClient('matchmaking',{});
+ assert.equal(publicRollover.r.status,200,JSON.stringify(publicRollover.d));
+ const publicNext=await db.prepare(`SELECT s.cycle,s.passage_id,p.difficulty FROM race_seen s
+   JOIN passages p ON p.id=s.passage_id WHERE s.pool='public_race' AND s.request_key=?`).bind(publicRollover.d.id).first();
+ assert.equal(publicNext.cycle,2,'Public advances only after exhausting 600');
+ assert.equal(publicNext.difficulty,'easy','Public new cycle starts Easy');
+ assert.notEqual(publicNext.passage_id,publicLast,'Public boundary cannot repeat last passage');
+ assert.equal((await db.prepare("SELECT count(*) n FROM race_seen WHERE pool='public_race' AND cycle=1").first()).n,600);
+ record('All 600 Public Race passages uniquely assigned before cycle two; no boundary repeat');
+ record('All 200 Friends Race passages uniquely assigned before cycle two; no boundary repeat');
+
  x=await a('profile');assert.equal(x.r.headers.get('cache-control'),'no-store');assert.equal(x.r.headers.get('x-content-type-options'),'nosniff');record('Private APIs use no-store and security response headers');
  fs.writeFileSync('docs/test-results.json',JSON.stringify({date:new Date().toISOString(),checks:checks.length,passed:checks},null,2));console.log('All '+checks.length+' integration checks passed.');
 }finally{await mf.dispose()}
