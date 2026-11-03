@@ -50,6 +50,13 @@
       "when": 1793566000000,
       "tag": "0006_readable_driver_ids",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1793693800000,
+      "tag": "0007_driver_ids_from_22301",
+      "breakpoints": true
     }
   ]
 }
