@@ -83,6 +83,19 @@ async function handler(req: Request) {
     }
     if (p[0] === 'passages') {
         if(method!=='GET')return fail('Method not allowed.',405);
+        // Lightweight, complete passage catalog for Practice and Timed test. No large text bodies.
+        // Pagination prevents payload limits and keeps the 4,000 item dropdown searchable.
+        if (p[1] === 'options') {
+            const requestedDifficulty = url.searchParams.get('difficulty') || 'mixed';
+            if (!['easy','medium','hard','mixed'].includes(requestedDifficulty)) return fail('Invalid difficulty.');
+            const where = requestedDifficulty === 'mixed' ? "status='published'" : "status='published' AND difficulty=?";
+            const filters = requestedDifficulty === 'mixed' ? [] : [requestedDifficulty];
+            const offset = Math.max(0, Math.min(100000, Math.floor(Number(url.searchParams.get('offset')) || 0)));
+            const limit = Math.max(1, Math.min(500, Math.floor(Number(url.searchParams.get('limit')) || 500)));
+            const rows = await query('SELECT id,title,difficulty,category,words FROM passages WHERE ' + where + ' ORDER BY CASE difficulty WHEN \'easy\' THEN 0 WHEN \'medium\' THEN 1 ELSE 2 END, id LIMIT ? OFFSET ?', ...filters, limit, offset);
+            const total = Number((await one('SELECT count(*) n FROM passages WHERE ' + where, ...filters)).n);
+            return Response.json({ passages: rows.map(p => ({ ...p, ...labelFor(p.id) })), total, offset, limit });
+        }
         if(p[1]){const passage=await one("SELECT * FROM passages WHERE id=? AND status='published'",clean(p[1]));return passage?Response.json({...passage,...metadata(passage)}):fail('Passage not found.',404)}
         const limit = Math.max(1, Math.min(50, Number(url.searchParams.get('limit')) || 20));
         const offset = Math.max(0, Number(url.searchParams.get('offset')) || 0);
