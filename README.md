@@ -8,7 +8,7 @@ Created by **Md. Emon Hossain**.
 
 1. Open the website and choose **Practice** or **Timed test**. Select Easy, Medium or Difficult, a passage, and a 15–300 second timer. Press **Start practice** and begin typing. The timer starts on your first keystroke.
 2. Watch your live WPM, accuracy, remaining time and car progress. When time ends, your result is saved automatically. **Progress** shows your previous results.
-3. Choose from the **Passage** selector in Practice or Timed test. The library now contains 4,000 actual texts; the passage-count shortcut is intentionally hidden from the public Practice layout.
+3. In **Practice** or **Timed test**, choose Easy (1,877), Medium (1,123), Difficult (1,000) or Mixed (all 4,000). The **Passage** dropdown loads the entire selected category via paged metadata requests, not just 50–200 items. Use **Search all passages** to filter by ID/title/category; opening a passage loads its full text separately. The passage-count shortcut is intentionally hidden. Public Race chooses a shared random passage from the full 4,000-entry pool, while Friends Race chooses from its configured difficulty.
 4. For a public match, open **Race** and press **Enter race**. You join a pool of 2–5 real players automatically; after another person joins, a shared countdown starts. Everyone types the same passage for 60 seconds.
 5. To race friends, choose **Race → With friends**. One player creates a private room and shares its code or invite link. Friends join, mark themselves ready, and the room creator starts the timed race.
 6. Click **Add your name** to save a display name. Keyderby automatically assigns a readable, permanent driver ID such as `KD-22301` and remembers your progress in this browser. No sign-in is required. An optional recovery code under Profile can help restore your profile on another browser.
@@ -34,7 +34,7 @@ pnpm exec wrangler d1 migrations apply DB --local --config dist/server/wrangler.
 pnpm start
 ```
 
-The first page visit automatically inserts any missing passages from the 4,000-record bundle in D1, including 1,000 new items in an existing 3,000-passage database. There is no seed endpoint or manual content setup. `pnpm dev` runs the development UI. Retained migrations are append-only historical records; the current schema has no privileged account fields or management tables. Never replay migrations directly on an existing database; use Wrangler's migration journal.
+The first page visit automatically inserts any missing passages from the 4,000-record bundle in D1, including 1,000 new items in an existing 3,000-passage database. The complete API selection catalog is paged at 500 compact metadata entries per request; selecting a passage fetches its body by ID. An automated integration test enumerates every item in Easy, Medium, Difficult and Mixed, asserting exactly 4,000 unique reachable choices. There is no seed endpoint or manual content setup. `pnpm dev` runs the development UI. Retained migrations are append-only historical records; the current schema has no privileged account fields or management tables. Never replay migrations directly on an existing database; use Wrangler's migration journal.
 
 ## Deploy to your Cloudflare account
 
