@@ -31,7 +31,7 @@ async function handler(req: Request) {
             // Allocate a readable public label, not an authentication credential.
             // Autoincrement allocation is atomic even across concurrent Workers.
             const row = await one('INSERT INTO driver_numbers(user_id) VALUES(?) RETURNING number', id);
-            await run('UPDATE users SET public_id=? WHERE id=?', 'KD-' + String(row.number).padStart(6, '0'), id);
+            await run('UPDATE users SET public_id=? WHERE id=?', 'KD-' + String(22300 + Number(row.number)).padStart(5, '0'), id);
             sessionToken = await newSession(id);
             u = await one('SELECT * FROM users WHERE id=?', id);
         }
