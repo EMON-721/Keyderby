@@ -53,11 +53,31 @@ try{
   assert.equal(visibleIds.size,3200);
   assert.ok(!visibleIds.has(publicOnly) && !visibleIds.has(friendsOnly));
   record('Exactly 3,200 Practice, 600 Public Race, 200 Friends Race; zero overlapping passage IDs');
+  // Per-user rotation: repeated request keys are idempotent; distinct requests never repeat in cycle 1.
+  const key1=crypto.randomUUID(),key2=crypto.randomUUID();
+  const firstAssigned=await a('practice/next',{difficulty:'easy',requestKey:key1});
+  assert.equal(firstAssigned.r.status,200,JSON.stringify(firstAssigned.d));
+  assert.equal(firstAssigned.d.cycle,1);
+  assert.equal(firstAssigned.d.total,3200);
+  const id1=firstAssigned.d.passage.id;
+  assert.equal(firstAssigned.d.passage.pool,'practice');
+  const replay=(await a('practice/next',{difficulty:'easy',requestKey:key1})).d;
+  assert.equal(replay.passage.id,id1,'Repeated request key must not consume another passage');
+  assert.equal(replay.used,firstAssigned.d.used);
+  const secondAssigned=(await a('practice/next',{difficulty:'easy',requestKey:key2})).d;
+  assert.notEqual(secondAssigned.passage.id,id1,'Next Practice passage cannot repeat the prior one');
+  assert.equal(secondAssigned.used,firstAssigned.d.used+1);
+  assert.equal((await a('attempts',{passageId:id1,mode:'practice',duration:60})).r.status,400,'Previously assigned passage may not be replayed');
+  const practicePassage=secondAssigned.passage;
+  const other=(await b('practice/next',{difficulty:'mixed',requestKey:crypto.randomUUID()})).d;
+  assert.equal(other.used,1,'Each user has a separate Practice rotation');
+  assert.equal((await a('practice/next',{difficulty:'easy',requestKey:'invalid'})).r.status,400);
+  record('Automatic per-profile assignment, retry idempotency, no consecutive repeats');
   const bounded=(await a('passages/options?difficulty=mixed&offset=0&limit=999999')).d;
   assert.equal(bounded.passages.length,500,'Metadata page maximum must remain bounded');
   record('All 3,200 dedicated Practice passages are reachable exactly once in the searchable catalog');
   
- let attempt=(await a('attempts',{passageId:first.id,mode:'practice',duration:0})).d.attempt;assert.equal(attempt.duration,60);assert.equal((await b('attempts/'+attempt.id+'/start',{})).r.status,404);await a('attempts/'+attempt.id+'/start',{});assert.equal((await a('attempts/'+attempt.id+'/pause',{pause:true})).r.status,400);await sleep(600);x=await a('attempts/'+attempt.id+'/finish',{typed:'The morning lighX',strokes:18,wrong:2,wpm:99999});assert.equal(x.r.status,200,JSON.stringify(x.d));assert.equal(x.d.result.errors,1);const score=x.d.result.wpm;assert.equal((await a('attempts/'+attempt.id+'/finish',{typed:'fake',wpm:99999})).d.result.wpm,score);record('Finite timers, ownership checks, no pause and idempotent server scoring');
+ let attempt=(await a('attempts',{passageId:practicePassage.id,mode:'practice',duration:0})).d.attempt;assert.equal(attempt.duration,60);assert.equal((await b('attempts/'+attempt.id+'/start',{})).r.status,404);await a('attempts/'+attempt.id+'/start',{});assert.equal((await a('attempts/'+attempt.id+'/pause',{pause:true})).r.status,400);await sleep(600);x=await a('attempts/'+attempt.id+'/finish',{typed:'The morning lighX',strokes:18,wrong:2,wpm:99999});assert.equal(x.r.status,200,JSON.stringify(x.d));assert.equal(x.d.result.errors,1);const score=x.d.result.wpm;assert.equal((await a('attempts/'+attempt.id+'/finish',{typed:'fake',wpm:99999})).d.result.wpm,score);record('Finite timers, ownership checks, no pause and idempotent server scoring');
  assert.equal((await a('dashboard')).d.results.length,1);assert.equal((await b('dashboard')).d.results.length,0);record('Saved results stay private to their owner');
  let custom=(await a('attempts',{mode:'custom',text:'This is private custom practice content.',duration:30})).d.attempt;await a('attempts/'+custom.id+'/start',{});await a('attempts/'+custom.id+'/finish',{typed:'This is private',strokes:15,wrong:0});const stored=(await a('dashboard')).d.results.find(r=>r.id===custom.id);assert.equal(stored.snapshot,'[private text omitted]');assert.equal(stored.typed,'[private text omitted]');record('Custom content is removed from completed analytics');
  for(const endpoint of ['admin/access','admin/users','admin/features','admin/import','reports'])assert.equal((await a(endpoint,{})).r.status,404);const columns=(await db.prepare('PRAGMA table_info(sessions)').all()).results;assert.ok(!columns.some(v=>v.name==='admin'));record('No admin APIs, credentials or privileged session field');
@@ -71,6 +91,20 @@ try{
  let late=(await a('attempts',{passageId:first.id,mode:'test',duration:15})).d.attempt;await a('attempts/'+late.id+'/start',{});await db.prepare('UPDATE attempts SET started=? WHERE id=?').bind(Date.now()-14000,late.id).run();assert.equal((await a('attempts/'+late.id+'/progress',{typed:late.snapshot.slice(0,10)})).r.status,200);await db.prepare('UPDATE attempts SET started=? WHERE id=?').bind(Date.now()-18000,late.id).run();x=await a('attempts/'+late.id+'/finish',{typed:late.snapshot,strokes:1000,wrong:0});assert.equal(x.d.result.typed,late.snapshot.slice(0,10));assert.equal(x.d.result.elapsed,15);record('Late submissions cannot add text beyond the server deadline');
  const clients=[a,b,client(),client(),client(),client()];for(let i=2;i<clients.length;i++)await clients[i]('bootstrap');const queued=[];for(const person of clients){const q=await person('matchmaking',{});assert.equal(q.r.status,200,JSON.stringify(q.d));queued.push(q.d.id)}assert.ok(queued.slice(0,5).every(id=>id===queued[0]));assert.notEqual(queued[5],queued[0]);state=(await a('rooms/'+queued[0])).d;assert.equal(state.players.length,5);assert.equal(state.room.host,'system');assert.equal(state.room.duration,60);assert.equal((await db.prepare('SELECT pool FROM passages WHERE id=?').bind(state.room.passage_id).first()).pool,'public_race');assert.equal(state.room.state,'racing');assert.ok(state.room.start_at>Date.now());assert.equal((await a('rooms/'+queued[0]+'/start',{})).r.status,403);assert.equal((await a('matchmaking',{})).d.id,queued[0]);record('One-click public matching, five-player capacity, automatic countdown and rejoin');
  await a('settings',{visibility:'public',leaderboard:true,countryCode:'BD'});let timed=(await a('attempts',{passageId:first.id,mode:'test',duration:15})).d.attempt;await a('attempts/'+timed.id+'/start',{});await db.prepare('UPDATE attempts SET started=? WHERE id=?').bind(Date.now()-15500,timed.id).run();x=await a('attempts/'+timed.id+'/finish',{typed:timed.snapshot.slice(0,160),strokes:160,wrong:0});assert.equal(x.d.result.eligible,1);const worldwide=(await b('leaderboard?period=weekly&difficulty=easy&duration=15')).d;assert.equal(worldwide.maxRank,30);assert.equal(worldwide.entries.length,1);assert.equal(worldwide.entries[0].publicId,'KD-22301');assert.equal(worldwide.entries[0].countryCode,'BD');assert.ok(worldwide.entries[0].sessions>=1);assert.equal((await b('leaderboard?period=weekly&difficulty=easy&duration=15&mode=race')).d.entries.length,0);await a('settings',{visibility:'public',leaderboard:true,countryCode:'XX'});assert.equal((await a('profile')).d.user.settings.countryCode,'');await a('settings',{visibility:'private',leaderboard:false});assert.equal((await b('leaderboard?period=weekly&difficulty=easy&duration=15')).d.entries.length,0);record('Eligible scores compare like tests and respect immediate privacy opt-out');
+ const cycleClient=client();
+ const cycleUser=(await cycleClient('bootstrap')).d.user.id;
+ const tail=(await cycleClient('practice/next',{difficulty:'mixed',requestKey:crypto.randomUUID()})).d;
+ assert.equal(tail.used,1);
+ await db.prepare(`INSERT OR IGNORE INTO practice_seen(user_id,cycle,passage_id,request_key,assigned_at)
+     SELECT ?,1,p.id,'fixture:'||p.id,? FROM passages p WHERE p.pool='practice' AND p.status='published'`)
+     .bind(cycleUser,Date.now()).run();
+ assert.equal((await db.prepare('SELECT count(*) n FROM practice_seen WHERE user_id=? AND cycle=1').bind(cycleUser).first()).n,3200);
+ const restarted=(await cycleClient('practice/next',{difficulty:'easy',requestKey:crypto.randomUUID()})).d;
+ assert.equal(restarted.cycle,2,'A new cycle must start only when all 3,200 were assigned');
+ assert.equal(restarted.used,1);
+ assert.notEqual(restarted.passage.id,tail.passage.id,'Cycle boundary cannot repeat the previous passage');
+ assert.equal((await db.prepare('SELECT count(*) n FROM practice_seen WHERE user_id=? AND cycle=1').bind(cycleUser).first()).n,3200);
+ record('All 3,200 exhausted before cycle two, no boundary repeat, history intact');
  x=await a('profile');assert.equal(x.r.headers.get('cache-control'),'no-store');assert.equal(x.r.headers.get('x-content-type-options'),'nosniff');record('Private APIs use no-store and security response headers');
  fs.writeFileSync('docs/test-results.json',JSON.stringify({date:new Date().toISOString(),checks:checks.length,passed:checks},null,2));console.log('All '+checks.length+' integration checks passed.');
 }finally{await mf.dispose()}

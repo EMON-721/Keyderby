@@ -1,6 +1,7 @@
 import { auth, db, query, one, run, uid, hash, token, newSession, limited, publicUser } from '../../../lib/server';
 import {advancePublicRaces,joinPublicQueue} from '../../../lib/racing';
 import {ensureCorpus} from '../../../lib/corpus';
+import {assignPractice} from '../../../lib/practice-rotation';
 import {readJson,validateOrigin,HttpFailure,secureResponse} from '../../../lib/http-security';
 import {labelFor} from '../../../lib/passage-labels';
 import { metadata } from '../../../lib/content';
@@ -57,7 +58,7 @@ async function handler(req: Request) {
         if (method === 'GET')
             return Response.json({ user: publicUser(u) });
         if (method === 'DELETE') {
-            await db().batch([db().prepare("UPDATE users SET status='deleted',name='Deleted driver',username=NULL,recovery=NULL,settings='{}' WHERE id=?").bind(u.id), db().prepare('DELETE FROM sessions WHERE user_id=?').bind(u.id), db().prepare('DELETE FROM attempts WHERE user_id=?').bind(u.id), db().prepare('DELETE FROM goals WHERE user_id=?').bind(u.id)]);
+            await db().batch([db().prepare("UPDATE users SET status='deleted',name='Deleted driver',username=NULL,recovery=NULL,settings='{}' WHERE id=?").bind(u.id), db().prepare('DELETE FROM sessions WHERE user_id=?').bind(u.id), db().prepare('DELETE FROM attempts WHERE user_id=?').bind(u.id), db().prepare('DELETE FROM goals WHERE user_id=?').bind(u.id),db().prepare('DELETE FROM practice_seen WHERE user_id=?').bind(u.id),db().prepare('DELETE FROM practice_cycles WHERE user_id=?').bind(u.id)]);
             return Response.json({ ok: true }, { headers: { 'Set-Cookie': 'kd_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0' } });
         }
         const name = clean(body.name, 40);
@@ -80,6 +81,15 @@ async function handler(req: Request) {
         const s = settingsAllowed(body);
         await run('UPDATE users SET settings=? WHERE id=?', JSON.stringify(s), u.id);
         return Response.json(s);
+    }
+    if (p[0] === 'practice' && p[1] === 'next') {
+        if (method !== 'POST') return fail('Method not allowed.',405);
+        const difficulty=['easy','medium','hard','mixed'].includes(body.difficulty) ? body.difficulty : 'mixed';
+        const requestKey=clean(body.requestKey,50);
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestKey))
+            return fail('Missing valid passage request identifier.');
+        await limited('practice-next:'+u.id,45);
+        return Response.json(await assignPractice(u.id,difficulty,requestKey));
     }
     if (p[0] === 'passages') {
         if(method!=='GET')return fail('Method not allowed.',405);
@@ -121,6 +131,14 @@ async function handler(req: Request) {
             let passage = body.passageId ? await one("SELECT * FROM passages WHERE id=? AND status='published'", body.passageId) : null;
             if (passage && ['practice','test','challenge'].includes(mode) && passage.pool !== 'practice')
                 return fail('This passage belongs to Race, not Practice.');
+            if (mode==='practice') {
+                if (!passage) return fail('Your next Practice passage is assigned automatically. Refresh Practice to continue.');
+                const current = await one('SELECT c.last_passage_id FROM practice_cycles c WHERE c.user_id=?',u.id);
+                const assigned = await one('SELECT 1 ok FROM practice_seen s JOIN practice_cycles c ON c.user_id=s.user_id AND c.cycle=s.cycle WHERE s.user_id=? AND s.passage_id=? AND s.request_key NOT LIKE ? LIMIT 1',u.id,passage.id,'legacy:%');
+                if (!current || current.last_passage_id!==passage.id || !assigned)
+                    return fail('Practice uses your next automatically assigned passage. Manual selection is disabled.');
+            }
+            if (body.roomId && mode !== 'race') return fail('Only Race attempts may use a race room.',403);
             if (mode === 'race' && !body.roomId)
                 return fail('A real race room is required to use Race passages.',403);
             const duration = [15, 30, 60, 120, 300].includes(Number(body.duration)) ? Number(body.duration) : 60;

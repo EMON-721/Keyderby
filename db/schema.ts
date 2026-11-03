@@ -10,3 +10,21 @@ export const limits = sqliteTable('limits', { id: text('id').primaryKey(), count
 
 // Public-facing, sequential driver numbers; never used as session credentials.
 export const driverNumbers = sqliteTable('driver_numbers', { number: integer('number').primaryKey({ autoIncrement: true }), userId: text('user_id').notNull().unique().references(() => users.id) });
+
+/** Durable, per-user passage rotation. Public Race and Friends Race use separate pools. */
+export const practiceCycles = sqliteTable('practice_cycles', {
+  userId: text('user_id').primaryKey().references(() => users.id),
+  cycle: integer('cycle').notNull().default(1),
+  lastPassageId: text('last_passage_id')
+});
+export const practiceSeen = sqliteTable('practice_seen', {
+  userId: text('user_id').notNull().references(() => users.id),
+  cycle: integer('cycle').notNull(),
+  passageId: text('passage_id').notNull().references(() => passages.id),
+  requestKey: text('request_key').notNull(),
+  assignedAt: integer('assigned_at').notNull()
+}, t => [
+  uniqueIndex('practice_seen_cycle_unique').on(t.userId,t.cycle,t.passageId),
+  uniqueIndex('practice_seen_request_unique').on(t.userId,t.requestKey),
+  index('practice_seen_user_cycle_idx').on(t.userId,t.cycle)
+]);

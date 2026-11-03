@@ -45,6 +45,20 @@ Run `pnpm exec wrangler deploy --dry-run --config dist/server/wrangler.cloudflar
 
 Current tests cover application flows in Miniflare/D1. They do not prove a specific production concurrency capacity. The live review preview and your Cloudflare account are separate deployments with separate databases.
 
+## Verify per-user automatic Practice rotation
+
+Migration `0009_per_user_practice_rotation` creates `practice_cycles` and `practice_seen` and backfills existing completed Practice/Timed Test results. This does not delete users, passages, results, sessions or rooms. `POST /api/practice/next` reserves the next unseen passage, and a new cycle starts only when all 3,200 Practice IDs have been seen.
+
+In the production Cloudflare D1 Console, these **read-only** queries verify the migration and cycle ranges:
+
+```sql
+SELECT COUNT(*) AS practice_passages FROM passages WHERE status='published' AND pool='practice';
+SELECT cycle,COUNT(*) AS assigned_count,COUNT(DISTINCT passage_id) AS distinct_count
+  FROM practice_seen GROUP BY user_id,cycle ORDER BY assigned_count DESC LIMIT 10;
+```
+
+Expect 3,200 Practice passages; each user's assigned and distinct counts should match, never exceeding 3,200 per cycle. Avoid sharing query results containing private user IDs.
+
 ## Verify the three non-overlapping passage pools
 
 The `0008_distinct_passage_pools` D1 migration adds an indexed `pool` field and distributes existing published records without deleting passages or saved user results. **Migrations must be applied before deploying the new Worker**.

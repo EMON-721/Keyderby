@@ -4,6 +4,12 @@ A minimal typing website with graphite, white and teal styling. Open it and type
 
 Created by **Md. Emon Hossain**.
 
+## Automatic non-repeating Practice rotation
+
+Each browser profile gets its own server-side Practice sequence. The next unseen passage is assigned automatically: no user-facing dropdown, search or manual repeat. All **3,200 Practice passages** are assigned once per profile/cycle before the next cycle begins; the first new-cycle passage differs from the last previous-cycle passage. Easy/Medium/Difficult are preferences: when one difficulty is exhausted, remaining Practice texts are assigned instead of repeating early. The user chooses duration, but cannot choose a passage. A unique idempotency key prevents retries assigning two texts.
+
+The append-only D1 migration `0009_per_user_practice_rotation` counts previously completed Practice/Timed Test passages in cycle one. A passage counts as *seen* when assigned, including if the browser closes before the user types it; this ensures no repeated preview after refresh. Profile IDs, saved attempts, recovery codes and 800 Race passages are preserved. Public/Friends Race must give all room members a shared passage, so this independent rotation applies to **Practice only**.
+
 ## Passage allocation — 4,000 unique records, no overlap
 
 Every published passage belongs to exactly one category, assigned by a non-destructive, append-only database migration:
@@ -18,7 +24,7 @@ Search and selection now share one field. The old “X shown · Y available” l
 
 1. Open the website and choose **Practice**. Select Easy, Medium or Difficult, a passage, and a 15–300 second timer. Press **Start practice** and begin typing. The timer starts on your first keystroke.
 2. Watch your live WPM, accuracy, remaining time and car progress. When time ends, your result is saved automatically. **Progress** shows your previous results.
-3. Use the single **Passage** search-and-select box to pick any of the dedicated **3,200 Practice passages** (Easy, Medium, Difficult or Mixed). The Race area has another **800 non-overlapping passages**: 600 for Public Race and 200 for Friends Race. No separate Timed Test tab or passage-count caption is shown.
+3. Open **Practice** to receive an automatic passage; search and selection have been removed. Every profile cycles through 3,200 unique Practice passages before any repeats. Select difficulty preference and duration if desired. Race keeps another 800 passages: 600 Public Race and 200 Friends Race.
 4. For a public match, open **Race** and press **Enter race**. You join a pool of 2–5 real players automatically; after another person joins, a shared countdown starts. Everyone types the same passage for 60 seconds.
 5. To race friends, choose **Race → With friends**. One player creates a private room and shares its code or invite link. Friends join, mark themselves ready, and the room creator starts the timed race.
 6. Click **Add your name** to save a display name. Keyderby automatically assigns a readable, permanent driver ID such as `KD-22301` and remembers your progress in this browser. No sign-in is required. An optional recovery code under Profile can help restore your profile on another browser.

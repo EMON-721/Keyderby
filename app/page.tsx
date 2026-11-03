@@ -45,7 +45,7 @@ export default function App() {
         setPage('room');
     }
     else
-        setPage(['home', 'practice', 'race', 'friends', 'punctuation', 'numbers', 'custom', 'mistakes', 'leaderboard', 'dashboard', 'profile', 'settings', 'library', 'info', 'sources'].includes(p) ? p : 'home'); }; read(); const listener = (e: Event) => { sessionActive.current = !!(e as CustomEvent).detail; }; window.addEventListener('hashchange', read); window.addEventListener('kd:typing', listener); return () => { window.removeEventListener('hashchange', read); window.removeEventListener('kd:typing', listener); }; }, [refresh]);
+        setPage(['home', 'practice', 'race', 'friends', 'punctuation', 'numbers', 'custom', 'mistakes', 'leaderboard', 'dashboard', 'profile', 'settings', 'info', 'sources'].includes(p) ? p : 'home'); }; read(); const listener = (e: Event) => { sessionActive.current = !!(e as CustomEvent).detail; }; window.addEventListener('hashchange', read); window.addEventListener('kd:typing', listener); return () => { window.removeEventListener('hashchange', read); window.removeEventListener('kd:typing', listener); }; }, [refresh]);
     useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
     useEffect(() => {
         if (!user) return;
@@ -106,14 +106,14 @@ export default function App() {
  <nav className="mobile-core-nav" aria-label="Mobile navigation">{[['home', 'Practice'], ['race', 'Race'], ['leaderboard', 'Rankings']].map(([p, l]) => <a className={page === p ? 'active' : ''} href={'#' + p} onClick={e => { e.preventDefault(); go(p); }} key={p}>{l}</a>)}</nav>
  <main className="main" id="main-content">{loadError && <div className="alert">{loadError}<button onClick={refresh}>Try again</button></div>}
  {!user && !loadError && <Empty icon={Keyboard} title="Preparing your typing session…" desc="Your passage will appear in a moment."/>}{user && <>
- {isTyping && <><div className="quiet-intro"><h1>{page === 'mistakes' ? 'Give tricky words another try.' : page === 'custom' ? 'Practice your own words.' : 'Find your typing rhythm.'}</h1><p>{'Choose a passage. Start typing. Your progress saves automatically.'}</p></div><Typing compact key={page + JSON.stringify(practiceOptions)} mode={page === 'home' ? 'practice' : page} options={practiceOptions} user={user} notify={notify} go={go} onSaved={refresh}/></>}
+ {isTyping && <><div className="quiet-intro"><h1>{page === 'mistakes' ? 'Give tricky words another try.' : page === 'custom' ? 'Practice your own words.' : 'Find your typing rhythm.'}</h1><p>{'Your next passage is assigned automatically. No repeats until the Practice cycle is complete.'}</p></div><Typing compact key={page + JSON.stringify(practiceOptions)} mode={page === 'home' ? 'practice' : page} options={practiceOptions} user={user} notify={notify} go={go} onSaved={refresh}/></>}
  {(page === 'race' || page === 'friends') && <RaceLobby friends={page === 'friends'} createRoom={createRoom} joinRoom={joinRoom} enterRace={enterRace} notify={notify} go={go}/>}
  {page === 'room' && roomId && <Room id={roomId} user={user} notify={notify} go={go} onSaved={refresh}/>}
  {page === 'dashboard' && <Dashboard data={data} user={user} go={go} refresh={refresh} notify={notify}/>}
  {page === 'leaderboard' && <Leaderboard notify={notify} go={go}/>}
  {page === 'profile' && <Profile user={user} data={data} refresh={refresh} notify={notify} setModal={setModal} go={go} recoveryKey={recoveryKey}/>}
  {page === 'settings' && <SettingsPage user={user} refresh={refresh} notify={notify} setTheme={setTheme}/>}
- {page === 'library' && <Library go={go} notify={notify}/>}
+ 
  {page === 'sources' && <Sources />}
  {page === 'info' && <InfoPage topic={info} go={go} notify={notify}/>}
  </>}
@@ -142,8 +142,7 @@ function Typing({ mode, options = {}, user, notify, go, onSaved, disabled = fals
     onRaceDone?: Any;
     compact?: boolean;
 }) {
-    const [difficulty, setDifficulty] = useState(options.difficulty || 'easy'), [duration, setDuration] = useState([15,30,60,120,300].includes(options.duration)?options.duration:60), [list, setList] = useState<Any[]>([]), [selected, setSelected] = useState(''), [passageSearch, setPassageSearch] = useState(''), [pickerOpen, setPickerOpen] = useState(false), [choiceLimit, setChoiceLimit] = useState(120), [catalogLoading, setCatalogLoading] = useState(false), [selectedDetail, setSelectedDetail] = useState<Any>(null), [attempt, setAttempt] = useState<Any>(null), [typed, setTyped] = useState(''), [elapsed, setElapsed] = useState(0), [status, setStatus] = useState('setup'), [result, setResult] = useState<Any>(null), [busy, setBusy] = useState(false), [custom, setCustom] = useState(''), [review, setReview] = useState(false), [pause, setPause] = useState(false);
-    const pickerRef = useRef<HTMLDivElement>(null);
+    const [difficulty, setDifficulty] = useState(options.difficulty || 'easy'), [duration, setDuration] = useState([15,30,60,120,300].includes(options.duration)?options.duration:60), [selected, setSelected] = useState(''), [catalogLoading, setCatalogLoading] = useState(false), [selectedDetail, setSelectedDetail] = useState<Any>(null), [assignmentKey, setAssignmentKey] = useState(() => crypto.randomUUID()), [cycleInfo, setCycleInfo] = useState<Any>(null), [attempt, setAttempt] = useState<Any>(null), [typed, setTyped] = useState(''), [elapsed, setElapsed] = useState(0), [status, setStatus] = useState('setup'), [result, setResult] = useState<Any>(null), [busy, setBusy] = useState(false), [custom, setCustom] = useState(''), [review, setReview] = useState(false), [pause, setPause] = useState(false);
     const input = useRef<HTMLTextAreaElement>(null), started = useRef(0), typedRef = useRef(''), strokes = useRef(0), wrong = useRef(0), finishing = useRef(false), attemptRef = useRef<Any>(null), clock = useRef(0), pauseAt = useRef(0), pausedTime = useRef(0), tickRef = useRef<Any>(null), lastProgress = useRef(0), inputChain = useRef<Promise<Any>>(Promise.resolve());
     const target = attempt?.snapshot || roomPassage?.text || (selectedDetail?.id === selected ? selectedDetail.text : '') || '', targetChars = useMemo(() => chars(target), [target]), typedChars = useMemo(() => chars(typed), [typed]), metrics = score(target, typed, Math.max(.01, elapsed), strokes.current, wrong.current), remaining = Math.max(0, duration - elapsed), font = user?.settings?.font || 'mono';
     useEffect(() => {
@@ -158,61 +157,26 @@ function Typing({ mode, options = {}, user, notify, go, onSaved, disabled = fals
         return () => { window.dispatchEvent(new CustomEvent('kd:typing', { detail: false })); window.removeEventListener('beforeunload', unload); };
     }, [status]);
     const windowStart = Math.max(0, Math.floor((typedChars.length - 80) / 200) * 200);
-    const selectedPassage=roomPassage||(selectedDetail?.id===selected?selectedDetail:null)||list.find((p:Any)=>p.id===selected);
-    const visiblePassages = useMemo(() => {
-        const term = passageSearch.trim().toLowerCase();
-        return term ? list.filter((p:Any) => (p.displayId + ' ' + p.title + ' ' + p.category).toLowerCase().includes(term)) : list;
-    }, [list, passageSearch]);
-    useEffect(() => {
-        if (!pickerOpen) return;
-        const outside = (event:MouseEvent) => {
-            if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) setPickerOpen(false);
-        };
-        const escape = (event:KeyboardEvent) => { if (event.key === 'Escape') setPickerOpen(false); };
-        document.addEventListener('mousedown', outside);
-        document.addEventListener('keydown', escape);
-        return () => { document.removeEventListener('mousedown', outside); document.removeEventListener('keydown', escape); };
-    }, [pickerOpen]);
+    const selectedPassage=roomPassage||(selectedDetail?.id===selected?selectedDetail:null);
     const actualMode = options.challenge ? 'challenge' : mode === 'test' ? 'test' : mode;
     useEffect(() => {
-        if (!['practice','test'].includes(mode) || roomId) return;
+        if (mode !== 'practice' || roomId || options.challenge) return;
         let current = true;
         setCatalogLoading(true);
-        setList([]);
         setSelected('');
         setSelectedDetail(null);
-        setPassageSearch('');
-        setPickerOpen(false);
-        setChoiceLimit(120);
-        (async () => {
-            const base = 'passages/options?difficulty=' + encodeURIComponent(difficulty) + '&limit=500';
-            const first = await api(base + '&offset=0');
-            const count = Number(first.total) || 0;
-            const pages = Array.from({ length: Math.max(0, Math.ceil(count / 500) - 1) }, (_,i) => i + 1);
-            const rest = await Promise.all(pages.map(i => api(base + '&offset=' + (i * 500))));
-            const passages = [...first.passages, ...rest.flatMap((page:Any) => page.passages)];
-            if (passages.length !== count || new Set(passages.map((p:Any) => p.id)).size !== count)
-                throw new Error('The full passage catalog could not be loaded. Please retry.');
-            passages.sort((a:Any,b:Any) => (['easy','medium','hard'].indexOf(a.difficulty) - ['easy','medium','hard'].indexOf(b.difficulty)) || (Number(a.number)-Number(b.number)));
-            const specific = options.passageId ? await api('passages/' + encodeURIComponent(options.passageId)) : null;
-            if (specific && !passages.some((p:Any) => p.id === specific.id)) passages.unshift(specific);
-            if (current) {
-                setList(passages);
-                setSelected(specific?.id || passages[0]?.id || '');
-            }
-        })().catch((error:Any) => { if (current) notify(error.message); })
-            .finally(() => { if (current) setCatalogLoading(false); });
+        setCycleInfo(null);
+        api('practice/next',{difficulty,requestKey:assignmentKey})
+          .then((data:Any) => {
+            if (!current) return;
+            setSelected(data.passage.id);
+            setSelectedDetail(data.passage);
+            setCycleInfo({cycle:data.cycle,used:data.used,total:data.total});
+          })
+          .catch((error:Any) => { if (current) notify(error.message); })
+          .finally(() => { if (current) setCatalogLoading(false); });
         return () => { current = false; };
-    }, [difficulty, mode, notify, options.passageId, roomId]);
-    useEffect(() => {
-        if (!['practice','test'].includes(mode) || !selected) return;
-        let current = true;
-        setSelectedDetail(null);
-        api('passages/' + encodeURIComponent(selected))
-            .then((passage:Any) => { if (current) setSelectedDetail(passage); })
-            .catch((error:Any) => { if (current) notify(error.message); });
-        return () => { current = false; };
-    }, [selected, mode, notify]);
+    }, [mode, roomId, options.challenge, difficulty, assignmentKey, notify]);
     const reset = async () => {
         const a = attemptRef.current;
         if (a && !result) {
@@ -242,8 +206,8 @@ function Typing({ mode, options = {}, user, notify, go, onSaved, disabled = fals
             notify('This feature is temporarily disabled.');
             return;
         }
-        if (['practice','test'].includes(mode) && (!selected || catalogLoading)) {
-            notify('Choose a passage after the full list finishes loading.');
+        if (mode==='practice' && (!selected || catalogLoading || selectedDetail?.id!==selected)) {
+            notify('Your next automatic passage is still loading.');
             return;
         }
         setBusy(true);
@@ -359,8 +323,7 @@ function Typing({ mode, options = {}, user, notify, go, onSaved, disabled = fals
     };
     const next = async () => {
         await reset();
-        if (list.length)
-            setSelected(list[(list.findIndex(x => x.id === selected) + 1) % list.length].id);
+        if (mode === 'practice' && !roomId) setAssignmentKey(crypto.randomUUID());
     };
     const onPause = async () => {
         if (roomId || duration || !attemptRef.current)
@@ -387,30 +350,13 @@ function Typing({ mode, options = {}, user, notify, go, onSaved, disabled = fals
             mistakes = JSON.parse(result.mistakes || '[]');
         }
         catch { }
-        return <div className="results-page"><PageTitle eyebrow="ONE LAP BETTER" title="Look at you go." description={(result.displayId?result.displayId+' · ':'')+result.title + ' · ' + result.difficulty + ' · ' + Math.round(result.elapsed) + ' seconds'} action={<span className="pill green"><CheckCircle2 size={14}/>Saved to your progress</span>}/><section className="result-hero panel"><span className="result-trophy"><Trophy size={52}/></span><div><span className="eyebrow muted">YOUR CORRECTED SPEED</span><div className="result-speed">{Math.round(result.wpm)}<small>WPM</small></div><p>{result.wpm >= 60 ? 'That was a great lap. Keep that rhythm going.' : result.accuracy >= 95 ? 'Careful keystrokes. A strong foundation to build on.' : 'Every session is a step forward. Accuracy comes before speed.'}</p></div><div className="result-side"><div><Target size={21}/><span>Final accuracy<strong>{result.accuracy.toFixed(1)}%</strong></span></div><div><Zap size={21}/><span>Raw speed<strong>{Math.round(result.raw)} WPM</strong></span></div><div><Timer size={21}/><span>Time on track<strong>{result.elapsed.toFixed(1)} s</strong></span></div></div></section><div className="stats-grid result-stats">{[['FIRST-ATTEMPT ACCURACY', result.first_accuracy?.toFixed(1) + '%'], ['UNCORRECTED ERRORS', result.errors], ['CORRECTED MISTAKES', result.corrected], ['CHARACTERS TYPED', result.typed?.length || 0]].map(([k, v]) => <div className="stat-card panel" key={k}><span>{k}</span><strong>{v}</strong></div>)}</div><div className="result-buttons"><button className="btn primary" onClick={async () => { await reset(); setTimeout(prepare, 30); }}><RotateCcw size={17}/>Try again</button><button className="btn white" onClick={next}>Next passage<ArrowRight size={17}/></button><button className="btn white" onClick={() => setReview(!review)}><Search size={17}/>{review ? 'Hide' : 'Review'} mistakes</button><button className="btn white" onClick={() => go('dashboard')}><BarChart3 size={17}/>My dashboard</button><button className="icon-button" aria-label="Copy result" onClick={() => { navigator.clipboard.writeText(`My Keyderby lap: ${Math.round(result.wpm)} WPM · ${result.accuracy.toFixed(1)}% accuracy · ${Math.round(result.elapsed)}s`).then(() => notify('Result copied.')).catch(() => notify('Clipboard unavailable.')); }}><Copy size={18}/></button></div>{review && <section className="panel mistake-panel"><h3>A closer look at your keystrokes</h3>{!mistakes.length ? <p className="success-text">No uncorrected character errors. Nicely done.</p> : <><p>Character positions use a direct comparison. Insertions may shift later positions; this is not a word-alignment diagnosis.</p><div className="table-scroll"><table><thead><tr><th>Position</th><th>Expected</th><th>Typed</th><th>Category</th></tr></thead><tbody>{mistakes.slice(0, 100).map((m: Any) => <tr key={m.position}><td>{m.position + 1}</td><td><kbd>{m.expected === ' ' ? 'space' : m.expected}</kbd></td><td><kbd>{m.typed === ' ' ? 'space' : m.typed}</kbd></td><td>{m.kind}</td></tr>)}</tbody></table></div><button className="btn primary" onClick={() => go('mistakes')}>Practice my mistakes<ArrowRight size={16}/></button></>}</section>}<p className="fine-print">Corrected WPM = correctly matched character positions ÷ 5 ÷ elapsed minutes. Raw WPM counts all current characters. First-attempt accuracy includes corrected mistakes. {result.eligible ? 'This score meets the current leaderboard eligibility checks.' : 'Saved as a personal practice result.'}</p></div>;
+        return <div className="results-page"><PageTitle eyebrow="ONE LAP BETTER" title="Look at you go." description={(result.displayId?result.displayId+' · ':'')+result.title + ' · ' + result.difficulty + ' · ' + Math.round(result.elapsed) + ' seconds'} action={<span className="pill green"><CheckCircle2 size={14}/>Saved to your progress</span>}/><section className="result-hero panel"><span className="result-trophy"><Trophy size={52}/></span><div><span className="eyebrow muted">YOUR CORRECTED SPEED</span><div className="result-speed">{Math.round(result.wpm)}<small>WPM</small></div><p>{result.wpm >= 60 ? 'That was a great lap. Keep that rhythm going.' : result.accuracy >= 95 ? 'Careful keystrokes. A strong foundation to build on.' : 'Every session is a step forward. Accuracy comes before speed.'}</p></div><div className="result-side"><div><Target size={21}/><span>Final accuracy<strong>{result.accuracy.toFixed(1)}%</strong></span></div><div><Zap size={21}/><span>Raw speed<strong>{Math.round(result.raw)} WPM</strong></span></div><div><Timer size={21}/><span>Time on track<strong>{result.elapsed.toFixed(1)} s</strong></span></div></div></section><div className="stats-grid result-stats">{[['FIRST-ATTEMPT ACCURACY', result.first_accuracy?.toFixed(1) + '%'], ['UNCORRECTED ERRORS', result.errors], ['CORRECTED MISTAKES', result.corrected], ['CHARACTERS TYPED', result.typed?.length || 0]].map(([k, v]) => <div className="stat-card panel" key={k}><span>{k}</span><strong>{v}</strong></div>)}</div><div className="result-buttons">{mode !== 'practice' && <button className="btn primary" onClick={async () => { await reset(); setTimeout(prepare, 30); }}><RotateCcw size={17}/>Try again</button>}<button className="btn white" onClick={next}>Next new passage<ArrowRight size={17}/></button><button className="btn white" onClick={() => setReview(!review)}><Search size={17}/>{review ? 'Hide' : 'Review'} mistakes</button><button className="btn white" onClick={() => go('dashboard')}><BarChart3 size={17}/>My dashboard</button><button className="icon-button" aria-label="Copy result" onClick={() => { navigator.clipboard.writeText(`My Keyderby lap: ${Math.round(result.wpm)} WPM · ${result.accuracy.toFixed(1)}% accuracy · ${Math.round(result.elapsed)}s`).then(() => notify('Result copied.')).catch(() => notify('Clipboard unavailable.')); }}><Copy size={18}/></button></div>{review && <section className="panel mistake-panel"><h3>A closer look at your keystrokes</h3>{!mistakes.length ? <p className="success-text">No uncorrected character errors. Nicely done.</p> : <><p>Character positions use a direct comparison. Insertions may shift later positions; this is not a word-alignment diagnosis.</p><div className="table-scroll"><table><thead><tr><th>Position</th><th>Expected</th><th>Typed</th><th>Category</th></tr></thead><tbody>{mistakes.slice(0, 100).map((m: Any) => <tr key={m.position}><td>{m.position + 1}</td><td><kbd>{m.expected === ' ' ? 'space' : m.expected}</kbd></td><td><kbd>{m.typed === ' ' ? 'space' : m.typed}</kbd></td><td>{m.kind}</td></tr>)}</tbody></table></div><button className="btn primary" onClick={() => go('mistakes')}>Practice my mistakes<ArrowRight size={16}/></button></>}</section>}<p className="fine-print">Corrected WPM = correctly matched character positions ÷ 5 ÷ elapsed minutes. Raw WPM counts all current characters. First-attempt accuracy includes corrected mistakes. {result.eligible ? 'This score meets the current leaderboard eligibility checks.' : 'Saved as a personal practice result.'}</p></div>;
     }
     return <>{!compact && <PageTitle eyebrow={roomId ? 'LIVE DERBY' : options.challenge ? 'THE DAILY CHALLENGE' : 'YOUR KEYBOARD. YOUR STARTING LINE.'} title={options.challenge ? 'A little better today.' : names[mode] || names.practice} description={mode === 'custom' ? 'Your custom text stays private and is removed from stored results.' : 'Focus on accuracy first. Speed will find its way.'} action={!roomId && <button className="text-button" onClick={() => go('settings')}><Settings size={17}/>Typing preferences</button>}/>}
  
  {!roomId && !compact && <div className="practice-tabs">{[['practice', 'Passages', BookOpen], ['punctuation', 'Punctuation', Target], ['numbers', 'Numbers', Zap], ['custom', 'Custom text', Plus]].map(([id, label, Icon]: Any) => <button className={mode === id ? 'active' : ''} disabled={active} onClick={() => go(id)} key={id}><Icon size={16}/>{label}</button>)}</div>}
  <section className="typing-panel panel">
- {!roomId && <div className="typing-config"><label>Difficulty<select value={difficulty} disabled={active} onChange={e => setDifficulty(e.target.value)}>{['easy', 'medium', 'hard', 'mixed'].map(d => <option value={d} key={d}>{difficultyName(d)}</option>)}</select></label><label>Duration<select value={duration} disabled={active} onChange={e => setDuration(Number(e.target.value))}>{[[15, '15 seconds'], [30, '30 seconds'], [60, '60 seconds'], [120, '2 minutes'], [300, '5 minutes']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>{!['custom', 'mistakes', 'numbers', 'punctuation'].includes(mode) && <div className="passage-picker" ref={pickerRef}>
-    <label htmlFor="kd-passage-combobox">Passage</label>
-    <div className="passage-combobox">
-        <input id="kd-passage-combobox" type="text" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="kd-passage-list" aria-expanded={pickerOpen} aria-label="Choose or search a passage" placeholder={catalogLoading ? 'Loading passages…' : 'Choose or search a passage…'}
-          value={pickerOpen ? passageSearch : (selectedPassage?.id === selected && selected ? (selectedPassage.displayId + ' · ' + selectedPassage.title) : '')}
-          disabled={active || catalogLoading}
-          onFocus={() => { setPickerOpen(true); setPassageSearch(''); setChoiceLimit(120); }}
-          onChange={e => { setPickerOpen(true); setPassageSearch(e.target.value); setChoiceLimit(120); }}
-          onKeyDown={e => { if (e.key === 'Escape') { setPickerOpen(false); e.currentTarget.blur(); } if (e.key === 'Enter' && pickerOpen && visiblePassages.length) { e.preventDefault(); setSelected(visiblePassages[0].id); setPickerOpen(false); setPassageSearch(''); } }}
-        />
-        <ChevronDown size={16} aria-hidden="true"/>
-    </div>
-    {pickerOpen && !active && !catalogLoading && <div className="passage-choice-popup" id="kd-passage-list" role="listbox" aria-label="Available practice passages">
-        {visiblePassages.slice(0,choiceLimit).map((p:Any) => <button type="button" role="option" aria-selected={p.id===selected} className={p.id===selected?'selected':''} key={p.id} onClick={() => { setSelected(p.id); setPickerOpen(false); setPassageSearch(''); }}><span className="choice-code">{p.displayId}</span><span className="choice-title">{p.title}</span></button>)}
-        {!visiblePassages.length && <p className="passage-choice-empty">No matching passage. Try another ID or title.</p>}
-        {visiblePassages.length > choiceLimit && <button type="button" className="passage-show-more" onClick={() => setChoiceLimit(n=>n+150)}>Show more passages</button>}
-    </div>}
-</div>}<button className="icon-button" aria-label="New passage" disabled={active || catalogLoading} onClick={next}><RefreshCw size={18}/></button></div>}
+ {!roomId && <div className="typing-config"><label>Difficulty<select value={difficulty} disabled={active} onChange={e => { setDifficulty(e.target.value); if(mode==='practice') setAssignmentKey(crypto.randomUUID()); }}>{['easy', 'medium', 'hard', 'mixed'].map(d => <option value={d} key={d}>{difficultyName(d)}</option>)}</select></label><label>Duration<select value={duration} disabled={active} onChange={e => setDuration(Number(e.target.value))}>{[[15, '15 seconds'], [30, '30 seconds'], [60, '60 seconds'], [120, '2 minutes'], [300, '5 minutes']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>{mode === 'practice' && <div className="practice-auto-passage" role="status"><span>{catalogLoading ? 'Finding your next unused passage…' : 'Next passage assigned automatically'}</span>{cycleInfo && <small>Cycle {cycleInfo.cycle} · {cycleInfo.used} of {cycleInfo.total} assigned</small>}</div>}{mode !== 'practice' && <button className="icon-button" aria-label="New passage" disabled={active || catalogLoading} onClick={next}><RefreshCw size={18}/></button>}</div>}
  {mode === 'custom' && status === 'setup' && <div className="custom-input"><label>Paste your practice text<textarea maxLength={10000} value={custom} onChange={e => setCustom(e.target.value)} placeholder="Paste a paragraph, a story, or something you are learning…"/></label><span>{custom.length.toLocaleString()} / 10,000 characters · Private practice only</span></div>}
 
  <div className="passage-identity"><span className="passage-number">{attempt?.displayId||selectedPassage?.displayId||'WORD PRACTICE'}</span><strong>{attempt?.title||selectedPassage?.title||names[mode]||'Typing practice'}</strong><span className={'difficulty '+(attempt?.difficulty||selectedPassage?.difficulty||difficulty)}>{difficultyName(attempt?.difficulty||selectedPassage?.difficulty||difficulty)}</span></div> <div className="typing-metrics"><div><strong>{status === 'setup' ? '—' : Math.round(metrics.wpm)}</strong><span>WPM</span></div><div><strong>{status === 'setup' ? '—' : metrics.accuracy.toFixed(0) + '%'}</strong><span>ACCURACY</span></div><div className="metric-time"><Timer size={22}/><strong>{Math.ceil(remaining)}<small>s</small></strong><span>{'REMAINING'}</span></div><div><strong>{Math.round(metrics.completion)}<small>%</small></strong><span>PROGRESS</span></div></div>
@@ -430,16 +376,16 @@ function Typing({ mode, options = {}, user, notify, go, onSaved, disabled = fals
  {status === 'saveError' && <div className="start-overlay"><button className="btn primary" onClick={finish}>Retry saving result</button></div>}
  </div>
  <div className="typing-bottom"><span id="typing-instructions">{status === 'ready' ? <><span className="live-dot"/>Ready when you are. Start typing to begin.</> : status === 'running' ? <><span className="live-dot"/>Find your flow. Keep going.</> : <><Keyboard size={15}/>Accuracy first. Speed follows.</>}</span><div>{status === 'running' && !duration && !roomId && <button className="icon-button" onClick={onPause} aria-label="Pause practice"><Pause size={17}/></button>}{active && <><button className="text-button" onClick={async () => {
-                if (confirm('Restart this session? Your unfinished result will not be saved.'))
-                    await reset();
-            }}><RotateCcw size={15}/>Restart</button>{started.current > 0 && !roomId && <button className="btn small white" onClick={finish}>Finish session<Check size={15}/></button>}</>}</div></div>
+                if (confirm('Discard this session and move to the next passage? Your unfinished result will not be saved.'))
+                    await next();
+            }}><RotateCcw size={15}/>{mode==='practice'?'Skip passage':'Restart'}</button>{started.current > 0 && !roomId && <button className="btn small white" onClick={finish}>Finish session<Check size={15}/></button>}</>}</div></div>
  <div className="typing-progress"><div style={{ width: metrics.completion + '%' }}/></div>
  </section>
 
- {!roomId && !compact && <div className="practice-below"><div className="tip-card"><span className="tip-icon"><Info size={20}/></span><div><strong>A tip for the road</strong><p>Relax your shoulders. Keep your eyes on the text. A steady rhythm is more useful than a rushed start.</p></div></div><button className="text-button" onClick={() => go('library')}>Browse the passage library<ArrowRight size={16}/></button></div>}
+ {!roomId && !compact && <div className="practice-below"><div className="tip-card"><span className="tip-icon"><Info size={20}/></span><div><strong>A tip for the road</strong><p>Relax your shoulders. Keep your eyes on the text. A steady rhythm is more useful than a rushed start.</p></div></div></div>}
  </>;
 }
-function Dashboard({ data, user, go, notify }: Any) { const rs = data.results || [], avg = rs.length ? rs.reduce((n: number, r: Any) => n + r.wpm, 0) / rs.length : 0, best = Math.max(0, ...rs.map((r: Any) => r.wpm)), acc = rs.length ? rs.reduce((n: number, r: Any) => n + r.accuracy, 0) / rs.length : 0; return <><PageTitle eyebrow="YOUR PROGRESS" title={user && !user.guest ? `${user.name}’s practice` : 'Your practice, so far.'} description="Every saved session, in one place." action={<button className="btn primary" onClick={() => go('home')}>Keep typing<ArrowRight size={16}/></button>}/><div className="stats-grid">{[['AVERAGE', rs.length ? fmt(avg) : '—', 'WPM'], ['BEST', rs.length ? fmt(best) : '—', 'WPM'], ['ACCURACY', rs.length ? acc.toFixed(1) : '—', '%'], ['SESSIONS', rs.length, '']].map(([k, v, unit]) => <div className="stat-card panel" key={k}><span>{k}</span><strong>{v}<small>{unit}</small></strong></div>)}</div><section className="panel history simple-history"><div className="panel-heading"><h3>Recent sessions</h3>{rs.length > 0 && <button className="text-button" onClick={() => go('mistakes')}>Practice mistakes<ArrowRight size={15}/></button>}</div>{!rs.length ? <Empty icon={Keyboard} title="Your first session starts here." desc="Type a passage and your result will be saved automatically." action={<button className="btn primary" onClick={() => go('home')}>Start typing<ArrowRight size={16}/></button>}/> : <div className="table-scroll"><table><thead><tr><th>Passage</th><th>Speed</th><th>Accuracy</th><th>Date</th><th /></tr></thead><tbody>{rs.slice(0, 30).map((r: Any) => <tr key={r.id}><td><strong>{r.title}</strong><small>{r.difficulty} · {Math.round(r.elapsed)} seconds</small></td><td><strong>{fmt(r.wpm)}</strong> WPM</td><td>{r.accuracy.toFixed(1)}%</td><td>{new Date(r.finished).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</td><td>{r.passage_id && <button className="icon-button" aria-label={'Practice ' + r.title + ' again'} onClick={() => go('practice', { passageId: r.passage_id, difficulty: r.difficulty })}><RotateCcw size={15}/></button>}</td></tr>)}</tbody></table></div>}</section></>; }
+function Dashboard({ data, user, go, notify }: Any) { const rs = data.results || [], avg = rs.length ? rs.reduce((n: number, r: Any) => n + r.wpm, 0) / rs.length : 0, best = Math.max(0, ...rs.map((r: Any) => r.wpm)), acc = rs.length ? rs.reduce((n: number, r: Any) => n + r.accuracy, 0) / rs.length : 0; return <><PageTitle eyebrow="YOUR PROGRESS" title={user && !user.guest ? `${user.name}’s practice` : 'Your practice, so far.'} description="Every saved session, in one place." action={<button className="btn primary" onClick={() => go('home')}>Keep typing<ArrowRight size={16}/></button>}/><div className="stats-grid">{[['AVERAGE', rs.length ? fmt(avg) : '—', 'WPM'], ['BEST', rs.length ? fmt(best) : '—', 'WPM'], ['ACCURACY', rs.length ? acc.toFixed(1) : '—', '%'], ['SESSIONS', rs.length, '']].map(([k, v, unit]) => <div className="stat-card panel" key={k}><span>{k}</span><strong>{v}<small>{unit}</small></strong></div>)}</div><section className="panel history simple-history"><div className="panel-heading"><h3>Recent sessions</h3>{rs.length > 0 && <button className="text-button" onClick={() => go('mistakes')}>Practice mistakes<ArrowRight size={15}/></button>}</div>{!rs.length ? <Empty icon={Keyboard} title="Your first session starts here." desc="Type a passage and your result will be saved automatically." action={<button className="btn primary" onClick={() => go('home')}>Start typing<ArrowRight size={16}/></button>}/> : <div className="table-scroll"><table><thead><tr><th>Passage</th><th>Speed</th><th>Accuracy</th><th>Date</th><th /></tr></thead><tbody>{rs.slice(0, 30).map((r: Any) => <tr key={r.id}><td><strong>{r.title}</strong><small>{r.difficulty} · {Math.round(r.elapsed)} seconds</small></td><td><strong>{fmt(r.wpm)}</strong> WPM</td><td>{r.accuracy.toFixed(1)}%</td><td>{new Date(r.finished).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</td><td>{r.passage_id && <button className="icon-button" aria-label="Continue with your next automatic passage" onClick={() => go('home')}><RotateCcw size={15}/></button>}</td></tr>)}</tbody></table></div>}</section></>; }
 function download(name: string, text: string, type: string) { const url = URL.createObjectURL(new Blob([text], { type })); const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
 function ProfileModal({ mode, close, user, refresh, notify, onCreated }: Any) { const [name, setName] = useState(user?.guest ? '' : user?.name || ''), [recovery, setRecovery] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''); const recover = mode === 'recover'; return <div className="modal-scrim" onClick={close}><div role="dialog" aria-modal="true" aria-labelledby="profile-title" className="modal simple-profile-modal" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape')
     close(); if (e.key === 'Tab') {
@@ -581,7 +527,6 @@ function Leaderboard({ notify, go }: Any) {
         <div className="fairness-note"><Shield size={23}/><div><h3>Fair rankings, privacy first.</h3><p>Only public, opt-in profiles appear. A qualifying session needs at least 150 typed characters, 15 seconds, 90% accuracy, an acceptable raw speed and a completed timer. Standard practice, timed tests and races are ranked by best corrected WPM, comparing the same difficulty and duration. Online status is an estimate, not a continuous connection. Country is optional and self-reported; automated typing can never be completely ruled out.</p><button className="text-button" onClick={() => go('settings')}>Manage privacy and country<ArrowRight size={15}/></button></div></div>
     </>;
 }
-function Library({ go, notify }: Any) { const [search, setSearch] = useState(''), [difficulty, setDifficulty] = useState('mixed'), [category, setCategory] = useState(''), [offset, setOffset] = useState(0), [data, setData] = useState<Any>({ passages: [], categories: [], total: 0 }), [busy, setBusy] = useState(false); useEffect(() => { const timer = setTimeout(() => { setBusy(true); api(`passages?search=${encodeURIComponent(search)}&difficulty=${difficulty}&category=${encodeURIComponent(category)}&offset=${offset}&limit=12`).then(setData).catch((e: Any) => notify(e.message)).finally(() => setBusy(false)); }, 200); return () => clearTimeout(timer); }, [search, difficulty, category, offset, notify]); return <><PageTitle eyebrow="WORDS FOR EVERY ROAD" title="Find your next good passage." description="3,200 dedicated practice passages. Race passages are kept separate."/><div className="library-toolbar panel"><label className="search-input"><Search size={18}/><input aria-label="Search passages" placeholder="Search a title, topic, or word…" value={search} onChange={e => { setSearch(e.target.value); setOffset(0); }}/></label><select aria-label="Filter difficulty" value={difficulty} onChange={e => { setDifficulty(e.target.value); setOffset(0); }}>{['mixed', 'easy', 'medium', 'hard'].map(d => <option key={d} value={d}>{d === 'mixed' ? 'All difficulties' : difficultyName(d)}</option>)}</select><select aria-label="Filter category" value={category} onChange={e => { setCategory(e.target.value); setOffset(0); }}><option value="">All categories</option>{data.categories.map((c: string) => <option key={c}>{c}</option>)}</select></div><div className="library-summary"><span>{data.total} published passages in this view</span>{busy && <Loader2 size={16} className="spin"/>}</div><div className="library-grid">{data.passages.map((p: Any) => <article className="panel passage-card" key={p.id}><div><span className="passage-number">{p.displayId}</span><span className={'difficulty ' + p.difficulty}>{difficultyName(p.difficulty)}</span><span className="muted">{p.words} words</span></div><span className="eyebrow muted">{p.category}</span><h3>{p.title}</h3><p>{p.text.slice(0, 180)}…</p>{p.id.startsWith('CLASSIC') && <span className="classic-label">Classic excerpt · Source edition available</span>}<button className="text-button" onClick={() => go('practice', { passageId: p.id, difficulty: p.difficulty, duration: 60 })}>Practice this passage<ArrowRight size={16}/></button></article>)}</div>{!data.passages.length && !busy && <Empty icon={Search} title="No passages in this lane." desc="Try another category or a shorter search."/>}<div className="pagination"><button className="btn white small" disabled={!offset} onClick={() => setOffset(Math.max(0, offset - 12))}>Previous</button><span>Page {Math.floor(offset / 12) + 1}</span><button className="btn white small" disabled={offset + 12 >= data.total} onClick={() => setOffset(offset + 12)}>Next<ArrowRight size={15}/></button></div></>; }
 const infoContent: Any = {
     'About': { title: 'A little better, one keystroke at a time.', intro: 'Keyderby is a place to practice typing, race with friends, and see your progress take shape.', sections: [['Practice that meets you where you are', 'Start with familiar words, explore a timed test, or challenge yourself with more demanding passages. Every lap is a chance to find a steadier rhythm.'], ['Friendly competition, real people', 'Create a room, invite your crew, and race the same passage together. Empty rooms stay empty until real drivers arrive.'], ['Your progress belongs to you', 'Profiles do not require email or a password. A secure browser session keeps you connected, and a private recovery code can restore your profile.']] },
     'How it works': { title: 'Your first lap is a few keys away.', intro: 'No email required. Start as a guest, then give your progress a name when you are ready.', sections: [['01 — Pick your lane', 'Choose solo passages, timed tests, or custom text. Select the difficulty and duration that feel right.'], ['02 — Find your rhythm', 'Press Start practice, then type the displayed text. Your first accepted keystroke starts the timer. Green characters match; red characters need attention.'], ['03 — Learn from the lap', 'Your result includes corrected WPM, raw WPM, final accuracy, and first-attempt accuracy. Review the characters you missed and practice again.'], ['04 — Bring your crew', 'Create a private room and share its invite code. At least two connected drivers must be ready before the host starts the shared countdown.']] },

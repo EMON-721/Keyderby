@@ -81,3 +81,9 @@
 
 /* A searchable passage popup must not be clipped by the standard panel overflow. */
 .typing-panel.panel{overflow:visible}
+
+/* Automatically assigned passages, without a user-facing search/dropdown. */
+.typing-config .practice-auto-passage{display:flex;flex-direction:column;justify-content:center;gap:5px;flex:1 1 280px;min-width:210px;padding:8px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);min-height:40px;font-size:12px}
+.practice-auto-passage span{font-weight:650;color:var(--text)}
+.practice-auto-passage small{font-size:10px;color:var(--muted)}
+@media(max-width:760px){.typing-config .practice-auto-passage{flex:1 1 100%;min-width:0;width:100%}}
