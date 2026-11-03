@@ -1,0 +1,30 @@
+name: Keyderby live production A-to-Z read-only audit
+on:
+  push:
+    branches:
+      - audit/keyderby-live-20261103
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  live-browser-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install isolated Playwright runner
+        run: npm install --prefix /tmp/keyderby-audit --no-save --no-audit --no-fund playwright-core@1.56.1
+      - name: Run production smoke tests (no race creation / no score submission)
+        env:
+          KEYDERBY_URL: https://keyderby.emon721.workers.dev
+        run: node scripts/live-audit.mjs
+      - name: Upload browser audit report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-production-audit
+          path: audit-output/
+          if-no-files-found: warn
