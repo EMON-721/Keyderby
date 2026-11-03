@@ -128,6 +128,22 @@ try{
   assert.equal(new Set((await db.prepare("SELECT passage_id FROM rooms WHERE id IN (?,?,?,?)").bind(queued[0],queued[5],thirdPublic,fourthPublic).all()).results.map(x=>x.passage_id)).size,4);
   assert.equal((await db.prepare("SELECT count(*) n FROM race_seen WHERE pool='public_race' AND cycle=1").first()).n,4);
   record('Public Race rotates Easy, Hard, Medium, Mixed with four distinct shared-room passages');
+  // Regression: live waiting seats may not be deleted just because a browser was offline for >30 s.
+  const originalP4=(await p4('bootstrap')).d.user.id;
+  await db.prepare('UPDATE participants SET last_seen=? WHERE room_id=? AND user_id=?').bind(Date.now()-45000,fourthPublic,originalP4).run();
+  const newlyJoined=client();await newlyJoined('bootstrap');
+  const match=await newlyJoined('matchmaking',{});
+  assert.equal(match.r.status,200,JSON.stringify(match.d));
+  assert.equal(match.d.id,fourthPublic,'A reconnectable public waiting room should be reused');
+  assert.ok(await db.prepare('SELECT id FROM participants WHERE room_id=? AND user_id=?').bind(fourthPublic,originalP4).first(),
+    'Do not delete a temporarily disconnected player');
+  const recovered=await p4('rooms/'+fourthPublic);
+  assert.equal(recovered.r.status,200,JSON.stringify(recovered.d));
+  assert.ok(recovered.d.players.some(p=>p.user_id===originalP4),'Original player should reappear on refresh');
+  const restoredPresence=await db.prepare('SELECT last_seen FROM participants WHERE room_id=? AND user_id=?').bind(fourthPublic,originalP4).first();
+  assert.ok(restoredPresence.last_seen>Date.now()-5000,'Room refresh must restore heartbeat');
+  assert.equal((await p4('matchmaking',{})).d.id,fourthPublic,'Reconnect uses existing room; do not reserve another passage');
+  record('Public Race retains a seat after 45s offline and reconnects without invite or new passage');
 
  await a('settings',{visibility:'public',leaderboard:true,countryCode:'BD'});let timed=(await a('attempts',{passageId:first.id,mode:'test',duration:15})).d.attempt;await a('attempts/'+timed.id+'/start',{});await db.prepare('UPDATE attempts SET started=? WHERE id=?').bind(Date.now()-15500,timed.id).run();x=await a('attempts/'+timed.id+'/finish',{typed:timed.snapshot.slice(0,160),strokes:160,wrong:0});assert.equal(x.d.result.eligible,1);const worldwide=(await b('leaderboard?period=weekly&difficulty=easy&duration=15')).d;assert.equal(worldwide.maxRank,30);assert.equal(worldwide.entries.length,1);assert.equal(worldwide.entries[0].publicId,'KD-22301');assert.equal(worldwide.entries[0].countryCode,'BD');assert.ok(worldwide.entries[0].sessions>=1);assert.equal((await b('leaderboard?period=weekly&difficulty=easy&duration=15&mode=race')).d.entries.length,0);await a('settings',{visibility:'public',leaderboard:true,countryCode:'XX'});assert.equal((await a('profile')).d.user.settings.countryCode,'');await a('settings',{visibility:'private',leaderboard:false});assert.equal((await b('leaderboard?period=weekly&difficulty=easy&duration=15')).d.entries.length,0);record('Eligible scores compare like tests and respect immediate privacy opt-out');
  const cycleClient=client();

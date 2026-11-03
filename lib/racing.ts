@@ -5,11 +5,15 @@ const JOIN_WINDOW_MS=12000;
 const COUNTDOWN_MS=3500;
 export async function advancePublicRaces(){
  const now=Date.now();
+ // A transient network pause must NEVER erase a player's seat in a live waiting room.
+ // Keep the participant until they explicitly leave or the room closes.
+ // Only currently connected players count toward automatically starting a race.
+ const onlineSince=now-30000;
  await db().batch([
-  db().prepare("DELETE FROM participants WHERE last_seen<? AND room_id IN(SELECT id FROM rooms WHERE visibility='public' AND state='waiting')").bind(now-30000),
-  db().prepare("UPDATE rooms SET auto_start_at=NULL WHERE visibility='public' AND state='waiting' AND (SELECT count(*) FROM participants WHERE room_id=rooms.id)<2"),
   db().prepare("UPDATE rooms SET state='cancelled' WHERE visibility='public' AND state='waiting' AND (created<? OR expires<=?)").bind(now-120000,now),
-  db().prepare("UPDATE rooms SET state='racing',start_at=auto_start_at WHERE visibility='public' AND state='waiting' AND auto_start_at IS NOT NULL AND auto_start_at<=? AND (SELECT count(*) FROM participants WHERE room_id=rooms.id)>=2").bind(now+COUNTDOWN_MS)
+  db().prepare("UPDATE rooms SET auto_start_at=NULL WHERE visibility='public' AND state='waiting' AND (SELECT count(*) FROM participants WHERE room_id=rooms.id AND last_seen>?)<2").bind(onlineSince),
+  db().prepare("UPDATE rooms SET auto_start_at=COALESCE(auto_start_at,?) WHERE visibility='public' AND state='waiting' AND (SELECT count(*) FROM participants WHERE room_id=rooms.id AND last_seen>?)>=2").bind(now+JOIN_WINDOW_MS,onlineSince),
+  db().prepare("UPDATE rooms SET state='racing',start_at=auto_start_at WHERE visibility='public' AND state='waiting' AND auto_start_at IS NOT NULL AND auto_start_at<=? AND (SELECT count(*) FROM participants WHERE room_id=rooms.id AND last_seen>?)>=2").bind(now+COUNTDOWN_MS,onlineSince)
  ]);
 }
 export async function joinPublicQueue(user:any){
@@ -33,7 +37,7 @@ export async function joinPublicQueue(user:any){
   const room=await one("SELECT * FROM rooms WHERE visibility='public' AND state='waiting' AND expires>? AND (auto_start_at IS NULL OR auto_start_at>?) AND (SELECT count(*) FROM participants WHERE room_id=rooms.id)<capacity ORDER BY created LIMIT 1",now,now+COUNTDOWN_MS);if(!room)continue;
   await run("INSERT OR IGNORE INTO participants(id,room_id,user_id,ready,last_seen) SELECT ?,?,?,1,? WHERE EXISTS(SELECT 1 FROM rooms WHERE id=? AND state='waiting' AND (auto_start_at IS NULL OR auto_start_at>?) AND (SELECT count(*) FROM participants WHERE room_id=rooms.id)<capacity)",room.id+':'+user.id,room.id,user.id,now,room.id,now+COUNTDOWN_MS);
   const joined=await one('SELECT id FROM participants WHERE room_id=? AND user_id=?',room.id,user.id);if(!joined)continue;
-  await run("UPDATE rooms SET auto_start_at=CASE WHEN (SELECT count(*) FROM participants WHERE room_id=rooms.id)>=capacity THEN MIN(COALESCE(auto_start_at,?),?) ELSE COALESCE(auto_start_at,?) END WHERE id=? AND state='waiting' AND (SELECT count(*) FROM participants WHERE room_id=rooms.id)>=2",now+COUNTDOWN_MS,now+COUNTDOWN_MS,now+JOIN_WINDOW_MS,room.id);
+  await run("UPDATE rooms SET auto_start_at=CASE WHEN (SELECT count(*) FROM participants WHERE room_id=rooms.id AND last_seen>?)>=capacity THEN MIN(COALESCE(auto_start_at,?),?) ELSE COALESCE(auto_start_at,?) END WHERE id=? AND state='waiting' AND (SELECT count(*) FROM participants WHERE room_id=rooms.id AND last_seen>?)>=2",now-30000,now+COUNTDOWN_MS,now+COUNTDOWN_MS,now+JOIN_WINDOW_MS,room.id,now-30000);
   await advancePublicRaces();return Response.json({id:room.id,duration:room.duration});
  }
  return Response.json({error:'The starting grid just filled. Please try Enter race again.'},{status:409});

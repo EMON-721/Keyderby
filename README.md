@@ -4,6 +4,10 @@ A minimal typing website with graphite, white and teal styling. Open it and type
 
 Created by **Md. Emon Hossain**.
 
+## Public Race connection recovery
+
+A temporary browser/network interruption must not remove a player from an active public waiting room. The server now retains memberships until an explicit leave or normal room closure; it counts only recently connected players for auto-start, avoiding races with disconnected opponents. Room refresh restores the player's presence, and repeated **Enter race** reconnects to the existing room without consuming another passage. If a player has already lost their public room membership from an older deployment, the page offers **Reconnect to Public Race** instead of asking for a private invite code. Tests cover 45 seconds offline, recovery and no accidental new assignment.
+
 ## Automatic level rotation (no difficulty controls)
 
 In **Practice**, only the Duration input is visible; the previous Difficulty dropdown, automatic-assignment counter, and passage-count label are removed. The **backend selects difficulty automatically in the repeating sequence Easy → Hard → Medium → Mixed**; Mixed draws any unseen passage. Each profile continues to receive each of its 3,200 Practice passages once before a fresh cycle. If a specific difficulty runs out, another unseen passage is used instead of repeating. Existing profile history remains intact.

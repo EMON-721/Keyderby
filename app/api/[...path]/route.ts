@@ -339,7 +339,9 @@ async function handler(req: Request) {
             return Response.json({ ok: true });
         }
         if (!member)
-            return fail('Join this room with its invite code first.', 403);
+            return fail(room.visibility==='public'
+              ? 'Your public race seat is no longer active. Use Enter race to reconnect.'
+              : 'Join this room with its invite code first.', 403);
         if (p[2] === 'ready' && method === 'POST') {
             if (room.state !== 'waiting')
                 return fail('The race has started.');
