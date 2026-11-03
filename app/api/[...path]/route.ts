@@ -302,7 +302,13 @@ async function handler(req: Request) {
     }
     if(p[0]==='matchmaking'){
       if(method!=='POST')return fail('Method not allowed.',405);
-      return joinPublicQueue(u);
+      try { return await joinPublicQueue(u); }
+      catch (error:any) {
+        const cause=String(error?.message||'');
+        if (/no such (?:column|table).*?(?:rotation_base|race_seen|race_cycles)/i.test(cause))
+          return fail('Race database migration is incomplete. Apply the latest Cloudflare D1 migrations, then retry.',503);
+        throw error;
+      }
     }
     if (p[0] === 'rooms') {
         if (!p[1] && method === 'GET')

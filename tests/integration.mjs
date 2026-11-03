@@ -113,9 +113,14 @@ try{
  const clients=[a,b,client(),client(),client(),client()];for(let i=2;i<clients.length;i++)await clients[i]('bootstrap');const queued=[];for(const person of clients){const q=await person('matchmaking',{});assert.equal(q.r.status,200,JSON.stringify(q.d));queued.push(q.d.id)}assert.ok(queued.slice(0,5).every(id=>id===queued[0]));assert.notEqual(queued[5],queued[0]);state=(await a('rooms/'+queued[0])).d;assert.equal(state.players.length,5);assert.equal(state.room.host,'system');assert.equal(state.room.duration,60);assert.equal(state.room.difficulty,'easy');assert.equal((await db.prepare('SELECT pool FROM passages WHERE id=?').bind(state.room.passage_id).first()).pool,'public_race');assert.equal(state.room.state,'racing');assert.ok(state.room.start_at>Date.now());assert.equal((await a('rooms/'+queued[0]+'/start',{})).r.status,403);assert.equal((await a('matchmaking',{})).d.id,queued[0]);record('One-click public matching, five-player capacity, automatic countdown and rejoin');
   const secondPublic=(await db.prepare('SELECT difficulty,passage_id FROM rooms WHERE id=?').bind(queued[5]).first());
   assert.equal(secondPublic.difficulty,'hard','Second public room should be Hard');
-  await db.prepare("UPDATE rooms SET state='cancelled' WHERE id=?").bind(queued[5]).run();
+  // Reproduce a waiting room whose expiry passed but whose state never changed.
+  await db.prepare("UPDATE rooms SET expires=? WHERE id=?").bind(Date.now()-1000,queued[5]).run();
   const p3=client();await p3('bootstrap');
-  const thirdPublic=(await p3('matchmaking',{})).d.id;
+  const thirdResponse=await p3('matchmaking',{});
+  assert.equal(thirdResponse.r.status,200,JSON.stringify(thirdResponse.d));
+  const thirdPublic=thirdResponse.d.id;
+  assert.notEqual(thirdPublic,queued[5],'Expired waiting room must not be reused');
+  assert.equal((await db.prepare("SELECT state FROM rooms WHERE id=?").bind(queued[5]).first()).state,'cancelled','Expired waiting room should be cleaned up');
   assert.equal((await db.prepare('SELECT difficulty FROM rooms WHERE id=?').bind(thirdPublic).first()).difficulty,'medium','Third public room should be Medium');
   await db.prepare("UPDATE rooms SET state='cancelled' WHERE id=?").bind(thirdPublic).run();
   const p4=client();await p4('bootstrap');
