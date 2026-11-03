@@ -7,8 +7,8 @@ import { db, one } from './server';
 let initialization:Promise<void>|undefined;
 export function ensureCorpus(){
  if(!initialization)initialization=(async()=>{
-  const stored=await one("SELECT count(*) n FROM passages WHERE status='published'");
-  if(stored.n>=fullCorpus.length)return;
+  const stored=await one("SELECT count(*) n, sum(CASE WHEN id LIKE 'EXPAND-%' THEN 1 ELSE 0 END) added FROM passages WHERE status='published'");
+  if(Number(stored.n)>=fullCorpus.length && Number(stored.added)>=additionalOne.length+additionalTwo.length)return;
   const statements=[];
   for(let i=0;i<fullCorpus.length;i+=100){
    const batch=fullCorpus.slice(i,i+100);
