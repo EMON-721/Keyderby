@@ -116,6 +116,85 @@ try{
     await page.locator('main').waitFor({state:'visible'});
     return 'Rankings navigation loaded';
   });
+  // Production-state-changing checks are restricted to this temporary account.
+  // All assignments and results are removed by DELETE /api/profile at teardown.
+  await test('Temporary user can set a real profile and receive recovery credential',async()=>{
+    const r=await page.evaluate(async()=>{
+      const s=await fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Keyderby Audit Driver'})});
+      return {status:s.status,body:await s.json()};
+    });
+    assert.equal(r.status,200,JSON.stringify(r.body));
+    assert.equal(r.body.user.name,'Keyderby Audit Driver');
+    assert.equal(r.body.user.guest,false);
+    assert.ok(r.body.recoveryCode?.startsWith('KD-'));
+    assert.ok(!('recoveryCode' in r.body.user),'Recovery secret leaked into public profile');
+    return 'Verified owner profile and private one-time recovery code (not logged)';
+  });
+  await test('Account settings and ranking opt-out persist',async()=>{
+    const s=await page.evaluate(async()=>{
+      const r=await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({theme:'dark',visibility:'private',leaderboard:false,countryCode:'BD'})});
+      return {status:r.status,body:await r.json()};
+    });
+    assert.equal(s.status,200);
+    assert.equal(s.body.theme,'dark');
+    assert.equal(s.body.leaderboard,false);
+    assert.equal(s.body.visibility,'private');
+    const p=await page.evaluate(async()=> (await fetch('/api/profile')).json());
+    assert.equal(p.user.settings.visibility,'private');
+    assert.equal(p.user.settings.countryCode,'BD');
+    return 'Theme, country, private ranking mode stored';
+  });
+  let assignedPassage;
+  await test('Practice assignment idempotency and no repeated passage',async()=>{
+    const result=await page.evaluate(async()=>{
+      const post=async(key)=>{
+        const r=await fetch('/api/practice/next',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestKey:key})});
+        return {status:r.status,body:await r.json()};
+      };
+      const k=crypto.randomUUID();
+      return {first:await post(k),again:await post(k),next:await post(crypto.randomUUID())};
+    });
+    for(const item of [result.first,result.again,result.next])assert.equal(item.status,200,JSON.stringify(item.body));
+    assert.equal(result.first.body.passage.id,result.again.body.passage.id,'Retry must be idempotent');
+    assert.notEqual(result.first.body.passage.id,result.next.body.passage.id,'Consecutive Practice passage repeated');
+    assert.equal(result.next.body.total,3200);
+    assignedPassage=result.next.body.passage.id;
+    return 'Same request ID is idempotent; new request returns a different passage';
+  });
+  await test('Practice attempt starts, saves score, and appears only in owner history',async()=>{
+    const r=await page.evaluate(async({id})=>{
+      const post=async(path,body)=>{
+        const s=await fetch('/api/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        return {status:s.status,body:await s.json()};
+      };
+      const attempt=await post('attempts',{mode:'practice',passageId:id,duration:15});
+      if(attempt.status!==200)return {attempt};
+      const attemptId=attempt.body.attempt.id;
+      const start=await post('attempts/'+attemptId+'/start',{});
+      const finish=await post('attempts/'+attemptId+'/finish',{typed:attempt.body.attempt.snapshot.slice(0,12)});
+      const saved=await (await fetch('/api/dashboard')).json();
+      return {attempt,start,finish,saved: saved.results.find(a=>a.id===attemptId)};
+    },{id:assignedPassage});
+    assert.equal(r.attempt.status,200,JSON.stringify(r.attempt.body));
+    assert.equal(r.start.status,200,JSON.stringify(r.start.body));
+    assert.equal(r.finish.status,200,JSON.stringify(r.finish.body));
+    assert.ok(r.saved?.finished,'Completed attempt not in owner dashboard');
+    assert.equal(r.saved.eligible,0,'Private trial score must not enter public leaderboard');
+    return 'Finished score stored privately in temporary account';
+  });
+  await test('Unauthenticated profile access rejected',async()=>{
+    const r=await page.evaluate(async()=>{
+      const s=await fetch('/api/profile',{credentials:'omit'});
+      return {status:s.status};
+    });
+    assert.equal(r.status,401);
+    return 'HTTP 401';
+  });
+  await test('CSRF validation rejects hostile Origin',async()=>{
+    const r=await fetch(base+'/api/settings',{method:'POST',headers:{'Origin':'https://unauthorized.example','Content-Type':'application/json'},body:'{}'});
+    assert.equal(r.status,403);
+    return 'HTTP 403';
+  });
   await test('Mobile layout has navigation and no horizontal overflow',async()=>{
     await page.setViewportSize({width:390,height:844});
     assert.ok(await page.locator('nav.mobile-core-nav').isVisible());
