@@ -15,7 +15,8 @@ export const driverNumbers = sqliteTable('driver_numbers', { number: integer('nu
 export const practiceCycles = sqliteTable('practice_cycles', {
   userId: text('user_id').primaryKey().references(() => users.id),
   cycle: integer('cycle').notNull().default(1),
-  lastPassageId: text('last_passage_id')
+  lastPassageId: text('last_passage_id'),
+  rotationBase: integer('rotation_base').notNull().default(0)
 });
 export const practiceSeen = sqliteTable('practice_seen', {
   userId: text('user_id').notNull().references(() => users.id),
@@ -32,7 +33,7 @@ export const practiceSeen = sqliteTable('practice_seen', {
 /** Independent room-level rotation for the separate public and friends race pools. */
 export const raceCycles=sqliteTable('race_cycles',{
   pool:text('pool').primaryKey(),cycle:integer('cycle').notNull().default(1),
-  lastPassageId:text('last_passage_id')
+  lastPassageId:text('last_passage_id'),rotationBase:integer('rotation_base').notNull().default(0)
 });
 export const raceSeen=sqliteTable('race_seen',{
   pool:text('pool').notNull(),cycle:integer('cycle').notNull(),

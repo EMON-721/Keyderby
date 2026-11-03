@@ -32,16 +32,16 @@ export async function assignPractice(userId:string, requestKey:string) {
     }
     let assigned=await prior();
     if (!assigned) {
-        const count = await one(`SELECT count(*) n FROM practice_seen s JOIN practice_cycles c
-            ON c.user_id=s.user_id AND c.cycle=s.cycle WHERE c.user_id=?`,userId);
+        const count = await one(`SELECT count(*) n,c.rotation_base base FROM practice_cycles c
+            LEFT JOIN practice_seen s ON s.user_id=c.user_id AND s.cycle=c.cycle WHERE c.user_id=?`,userId);
         const order = ['easy','hard','medium','mixed'] as const;
-        const preferred = order[Number(count?.n||0)%4];
+        const preferred = order[Math.max(0,Number(count?.n||0)-Number(count?.base||0))%4];
         assigned = await claim(preferred);
         if (!assigned && preferred!=='mixed') assigned=await claim('mixed');
     }
     if (!assigned) {
         // Only advance a cycle if every Practice passage was assigned.
-        await run(`UPDATE practice_cycles SET cycle=cycle+1
+        await run(`UPDATE practice_cycles SET cycle=cycle+1,rotation_base=0
             WHERE user_id=? AND NOT EXISTS (
                 SELECT 1 FROM passages p WHERE p.status='published' AND p.pool='practice'
                 AND NOT EXISTS(

@@ -20,13 +20,13 @@ export async function assignRacePassage(pool:'public_race'|'friends_race',reques
     pool,requestKey,Date.now(),pool,pool,preference,preference,pool,pool);
   let assigned=await prior();
   if(!assigned){
-    const row=await one('SELECT count(*) n FROM race_seen s JOIN race_cycles c ON c.pool=s.pool AND c.cycle=s.cycle WHERE c.pool=?',pool);
-    const step=['easy','hard','medium','mixed'][Number(row?.n||0)%4];
+    const row=await one('SELECT count(*) n,c.rotation_base base FROM race_cycles c LEFT JOIN race_seen s ON s.pool=c.pool AND s.cycle=c.cycle WHERE c.pool=?',pool);
+    const step=['easy','hard','medium','mixed'][Math.max(0,Number(row?.n||0)-Number(row?.base||0))%4];
     assigned=await claim(step);
     if(!assigned && step!=='mixed')assigned=await claim('mixed');
   }
   if(!assigned) {
-    await run(`UPDATE race_cycles SET cycle=cycle+1 WHERE pool=?
+    await run(`UPDATE race_cycles SET cycle=cycle+1,rotation_base=0 WHERE pool=?
       AND NOT EXISTS(
         SELECT 1 FROM passages p WHERE p.pool=? AND p.status='published'
         AND NOT EXISTS(SELECT 1 FROM race_seen s

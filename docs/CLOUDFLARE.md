@@ -49,6 +49,8 @@ Current tests cover application flows in Miniflare/D1. They do not prove a speci
 
 Migration `0010_race_rotation` creates `race_cycles` and `race_seen` for **Public Race (600)** and **Friends Race (200)** without touching the existing 3,200 Practice assignments, user accounts, recovery codes or results. The server cycles **Easy → Hard → Medium → Mixed** for each pool independently, reserving a passage once per pool cycle, and assigns the same passage to everyone in a room. Only duration, not difficulty, is user-selectable. Public races remain 60 seconds and friends can select duration/players.
 
+Migration `0011_rotation_start_offsets` stores each existing profile/room pool's historic assigned count as the new four-step rotation offset, so the **first new assignment after upgrade is Easy** even for established users. All seen history remains intact. The offset resets to zero when each pool finishes a full cycle.
+
 After successfully applying migrations before deployment, use read-only D1 queries:
 
 ```sql
