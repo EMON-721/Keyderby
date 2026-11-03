@@ -85,12 +85,11 @@ async function handler(req: Request) {
     }
     if (p[0] === 'practice' && p[1] === 'next') {
         if (method !== 'POST') return fail('Method not allowed.',405);
-        const difficulty=['easy','medium','hard','mixed'].includes(body.difficulty) ? body.difficulty : 'mixed';
         const requestKey=clean(body.requestKey,50);
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestKey))
             return fail('Missing valid passage request identifier.');
         await limited('practice-next:'+u.id,45);
-        return Response.json(await assignPractice(u.id,difficulty,requestKey));
+        return Response.json(await assignPractice(u.id,requestKey));
     }
     if (p[0] === 'passages') {
         if(method!=='GET')return fail('Method not allowed.',405);
