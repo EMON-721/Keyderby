@@ -1,13 +1,23 @@
 {
-  "total": 3000,
+  "total": 4000,
+  "original": 3000,
+  "added": 1000,
   "counts": {
-    "easy": 1000,
-    "medium": 1000,
+    "easy": 1877,
+    "medium": 1123,
     "hard": 1000
   },
-  "uniqueTexts": 3000,
+  "extraCounts": {
+    "easy": 877,
+    "medium": 123,
+    "hard": 0
+  },
+  "uniqueTexts": 4000,
+  "uniqueIds": 4000,
+  "uniqueDisplayLabels": 4000,
   "structuralValidation": "passed",
-  "requiredTotal": 3000,
+  "requiredTotal": 4000,
   "countAndStructureComplete": true,
-  "remaining": 0
+  "remaining": 0,
+  "note": "Individual editorial review and production Cloudflare D1 sync must be separately verified."
 }
