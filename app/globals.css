@@ -53,3 +53,13 @@
 .ranking-driver-id{display:block;font-size:10px;color:var(--muted);margin-top:3px}
 @media(max-width:1050px) and (min-width:651px){.header-inner{gap:18px}.desktop-nav{position:static;transform:none;margin-left:auto;gap:17px}.header-actions{margin-left:0}}
 @media(max-width:650px){.header-actions{margin-left:auto}.profile-menu-name{max-width:115px}.profile-menu .profile-button{padding:9px 11px}.profile-menu-panel{right:0}}
+
+/* Whole-library passage picker: searchable 4,000-item catalog with a responsive layout. */
+.typing-config .passage-picker{display:flex;align-items:flex-start;gap:10px;flex:1 1 420px;min-width:240px}
+.typing-config .passage-picker>label{min-width:0;margin:0}
+.typing-config .passage-picker .passage-search{flex:0 1 190px}
+.typing-config .passage-picker .passage-select{flex:1 1 250px}
+.typing-config .passage-picker input{padding:9px 11px;font-size:12px;min-height:39px}
+.typing-config .passage-picker select{width:100%}
+.typing-config .passage-count{display:block;font-size:10px;color:var(--muted);margin:5px 0 0;line-height:1.4}
+@media(max-width:760px){.typing-config .passage-picker{flex:1 1 100%;flex-direction:column;gap:10px}.typing-config .passage-picker>label{width:100%;flex:1 1 auto}}
