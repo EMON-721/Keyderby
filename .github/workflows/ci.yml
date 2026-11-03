@@ -21,6 +21,9 @@ jobs:
       - run: pnpm test
       - run: pnpm content:validate
       - run: pnpm build
+      - run: pnpm cloudflare:config
+      - name: Verify generated Cloudflare D1 binding
+        run: node -e "const c=require('./dist/server/wrangler.cloudflare.json'); const d=c.d1_databases?.find(x=>x.binding==='DB'); if(!d||!d.database_id||d.database_name!=='keyderby'||c.name!=='keyderby') process.exit(1); console.log('PASS Cloudflare D1 binding DB ->',d.database_name);"
       - run: pnpm test:integration
       - run: pnpm audit --prod
       - run: pnpm security:scan
