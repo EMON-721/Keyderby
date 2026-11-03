@@ -32,7 +32,7 @@ export async function assignPractice(userId:string, requestKey:string) {
     }
     let assigned=await prior();
     if (!assigned) {
-        const count = await one(`SELECT count(*) n,c.rotation_base base FROM practice_cycles c
+        const count = await one(`SELECT count(s.passage_id) n,c.rotation_base base FROM practice_cycles c
             LEFT JOIN practice_seen s ON s.user_id=c.user_id AND s.cycle=c.cycle WHERE c.user_id=?`,userId);
         const order = ['easy','hard','medium','mixed'] as const;
         const preferred = order[Math.max(0,Number(count?.n||0)-Number(count?.base||0))%4];

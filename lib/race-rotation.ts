@@ -20,7 +20,7 @@ export async function assignRacePassage(pool:'public_race'|'friends_race',reques
     pool,requestKey,Date.now(),pool,pool,preference,preference,pool,pool);
   let assigned=await prior();
   if(!assigned){
-    const row=await one('SELECT count(*) n,c.rotation_base base FROM race_cycles c LEFT JOIN race_seen s ON s.pool=c.pool AND s.cycle=c.cycle WHERE c.pool=?',pool);
+    const row=await one('SELECT count(s.passage_id) n,c.rotation_base base FROM race_cycles c LEFT JOIN race_seen s ON s.pool=c.pool AND s.cycle=c.cycle WHERE c.pool=?',pool);
     const step=['easy','hard','medium','mixed'][Math.max(0,Number(row?.n||0)-Number(row?.base||0))%4];
     assigned=await claim(step);
     if(!assigned && step!=='mixed')assigned=await claim('mixed');
