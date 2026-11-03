@@ -1,6 +1,6 @@
 # Keyderby
 
-A minimal typing website with graphite, white and teal styling. Open it and type; a name-only profile gets a readable, automatically assigned driver ID such as `KD-000001`. There is no application login, email/password requirement, platform administrator, privileged role or management interface.
+A minimal typing website with graphite, white and teal styling. Open it and type; a name-only profile gets a readable, automatically assigned driver ID such as `KD-22301`. There is no application login, email/password requirement, platform administrator, privileged role or management interface.
 
 Created by **Md. Emon Hossain**.
 
@@ -8,14 +8,14 @@ Created by **Md. Emon Hossain**.
 
 1. Open the website and choose **Practice** or **Timed test**. Select Easy, Medium or Difficult, a passage, and a 15–300 second timer. Press **Start practice** and begin typing. The timer starts on your first keystroke.
 2. Watch your live WPM, accuracy, remaining time and car progress. When time ends, your result is saved automatically. **Progress** shows your previous results.
-3. Open **3,000 passages** to browse or search the full library. Every passage has a title, difficulty and number such as E0001. Choose **Practice this passage** to type it.
+3. Choose from the **Passage** selector in Practice or Timed test. The library now contains 4,000 actual texts; the passage-count shortcut is intentionally hidden from the public Practice layout.
 4. For a public match, open **Race** and press **Enter race**. You join a pool of 2–5 real players automatically; after another person joins, a shared countdown starts. Everyone types the same passage for 60 seconds.
 5. To race friends, choose **Race → With friends**. One player creates a private room and shares its code or invite link. Friends join, mark themselves ready, and the room creator starts the timed race.
-6. Click **Add your name** to save a display name. Keyderby automatically assigns a readable, permanent driver ID such as `KD-000001` and remembers your progress in this browser. No sign-in is required. An optional recovery code under Profile can help restore your profile on another browser.
+6. Click **Add your name** to save a display name. Keyderby automatically assigns a readable, permanent driver ID such as `KD-22301` and remembers your progress in this browser. No sign-in is required. An optional recovery code under Profile can help restore your profile on another browser.
 
 ## What works
 
-- 3,000 unique passages: 1,000 Easy, 1,000 Medium and 1,000 Difficult. Each has a stable code, title, source and difficulty.
+- **4,000 unique passages**, with the previous 3,000 retained and **1,000 additional source-traceable texts**: 1,877 Easy, 1,123 Medium and 1,000 Difficult. Each has a stable code, title, provenance and difficulty.
 - Every typing session has a 15, 30, 60, 120 or 300 second limit. No unlimited mode or timer pause.
 - Live corrected WPM, accuracy, character feedback, car progress and private saved results.
 - **Race → Enter race** automatically joins a public pool of 2–5 real players. A second player starts a 12 second joining window; a full grid shortens the countdown. Public races last 60 seconds and need no room creator or host action.
@@ -34,7 +34,7 @@ pnpm exec wrangler d1 migrations apply DB --local --config dist/server/wrangler.
 pnpm start
 ```
 
-The first page visit automatically initializes the 3,000 bundled passages in an empty database. There is no seed endpoint or manual content setup. `pnpm dev` runs the development UI. Retained migrations are append-only historical records; the current schema has no privileged account fields or management tables. Never replay migrations directly on an existing database; use Wrangler's migration journal.
+The first page visit automatically inserts any missing passages from the 4,000-record bundle in D1, including 1,000 new items in an existing 3,000-passage database. There is no seed endpoint or manual content setup. `pnpm dev` runs the development UI. Retained migrations are append-only historical records; the current schema has no privileged account fields or management tables. Never replay migrations directly on an existing database; use Wrangler's migration journal.
 
 ## Deploy to your Cloudflare account
 
@@ -71,7 +71,7 @@ The public footer contains only a centered copyright/creator line. The Typing gu
 
 ## Global rankings and online users
 
-- The former **Words** navigation and its vocabulary/repeat-word module have been removed. Practice, Race, Rankings and Progress remain in the top navigation; the passage library is available from Practice.
+- The former **Words** navigation and its vocabulary/repeat-word module have been removed. Only Practice, Race and Rankings remain in the top navigation. Progress, settings and dark mode are inside the profile menu.
 - **Rankings** presents up to **20 real, qualifying users**, never fabricated entries. Filter by standard practice, timed tests, or race; time period; difficulty; and duration. The global board accepts players worldwide.
 - Only named users who explicitly turn on public ranking visibility in **Settings → Global rankings & privacy** appear. This consent also permits their recent online status, aggregate practice time/session count and optional, self-reported country plus flag to appear. Hidden or guest profiles are never listed. Online means a visible browser has contacted the server in the past two minutes, not a guaranteed persistent connection.
 - Rankings show the best corrected WPM and average accuracy for the selected mode/difficulty/duration/period, plus each opted-in user's all-time number of completed standard practice/test/race sessions and total minutes. Qualifying attempts need 150+ typed characters, at least 15 seconds, 90%+ accuracy, and a completed timer, with existing speed and integrity checks. Old practice results recorded before the eligibility rule changed may not qualify retroactively.
@@ -85,7 +85,7 @@ Users can change their own name/preferences, export their own data and delete th
 
 ## Passage provenance
 
-The actual corpus contains 60 original passages and 2,940 classical excerpts. Full source editions, notices, URLs and hashes remain in `public/sources`; individual passage notices and accessible source files preserve provenance. These works are catalogued as public domain in the USA; this does not assert worldwide copyright clearance.
+The actual corpus contains 60 original Keyderby-written passages and 3,940 distinct excerpts from retained classical source editions. Exactly 1,000 of these excerpts are new additions, stored in two additional JSON files. Full source editions, notices, URLs and hashes remain in `public/sources`; individual passage notices and accessible source files preserve provenance. These works are catalogued as public domain in the USA; this does not assert worldwide copyright clearance.
 
 ```bash
 node scripts/generate-content.mjs
