@@ -5,10 +5,10 @@ import {labelFor} from './passage-labels';
 /**
  * Assign a new, non-repeating passage to one authenticated session owner.
  * The assigned passage is counted even if the visitor leaves without typing.
- * A given user/requestKey is idempotent. Difficulty is a preference; if that
- * difficulty is exhausted, use any remaining Practice text before resetting.
+ * A given user/requestKey is idempotent. Difficulty rotates automatically:
+ * Easy -> Hard -> Medium -> Mixed, with fallback only when that level is exhausted.
  */
-export async function assignPractice(userId:string, difficulty:string, requestKey:string) {
+export async function assignPractice(userId:string, requestKey:string) {
     await run('INSERT OR IGNORE INTO practice_cycles(user_id,cycle,last_passage_id) VALUES(?,1,NULL)',userId);
     async function prior() {
         return one('SELECT passage_id,cycle FROM practice_seen WHERE user_id=? AND request_key=?',userId,requestKey);
@@ -31,8 +31,14 @@ export async function assignPractice(userId:string, difficulty:string, requestKe
             userId,requestKey,Date.now(),userId,preferred,preferred,userId,userId);
     }
     let assigned=await prior();
-    if (!assigned) assigned=await claim(difficulty);
-    if (!assigned && difficulty!=='mixed') assigned=await claim('mixed');
+    if (!assigned) {
+        const count = await one(`SELECT count(*) n FROM practice_seen s JOIN practice_cycles c
+            ON c.user_id=s.user_id AND c.cycle=s.cycle WHERE c.user_id=?`,userId);
+        const order = ['easy','hard','medium','mixed'] as const;
+        const preferred = order[Number(count?.n||0)%4];
+        assigned = await claim(preferred);
+        if (!assigned && preferred!=='mixed') assigned=await claim('mixed');
+    }
     if (!assigned) {
         // Only advance a cycle if every Practice passage was assigned.
         await run(`UPDATE practice_cycles SET cycle=cycle+1
@@ -43,7 +49,7 @@ export async function assignPractice(userId:string, difficulty:string, requestKe
                     WHERE seen.user_id=? AND seen.cycle=practice_cycles.cycle AND seen.passage_id=p.id
                 )
             )`,userId,userId);
-        assigned=await prior() || await claim('mixed');
+        assigned=await prior() || await claim('easy') || await claim('mixed');
     }
     if (!assigned) throw new Error('Could not assign the next practice passage. Please retry.');
     const passage=await one("SELECT * FROM passages WHERE id=? AND status='published' AND pool='practice'",assigned.passage_id);

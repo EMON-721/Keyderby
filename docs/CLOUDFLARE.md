@@ -45,6 +45,20 @@ Run `pnpm exec wrangler deploy --dry-run --config dist/server/wrangler.cloudflar
 
 Current tests cover application flows in Miniflare/D1. They do not prove a specific production concurrency capacity. The live review preview and your Cloudflare account are separate deployments with separate databases.
 
+## Verify automatic difficulty rotation and race rooms
+
+Migration `0010_race_rotation` creates `race_cycles` and `race_seen` for **Public Race (600)** and **Friends Race (200)** without touching the existing 3,200 Practice assignments, user accounts, recovery codes or results. The server cycles **Easy → Hard → Medium → Mixed** for each pool independently, reserving a passage once per pool cycle, and assigns the same passage to everyone in a room. Only duration, not difficulty, is user-selectable. Public races remain 60 seconds and friends can select duration/players.
+
+After successfully applying migrations before deployment, use read-only D1 queries:
+
+```sql
+SELECT pool,cycle FROM race_cycles ORDER BY pool;
+SELECT pool,cycle,COUNT(*) AS assigned
+FROM race_seen GROUP BY pool,cycle ORDER BY pool,cycle;
+```
+
+Counts never exceed 600 Public or 200 Friends per pool cycle. Migration backfills previously created rooms into their first cycle, so an existing database may resume at a later step than Easy. A fresh pool cycle starts Easy.
+
 ## Verify per-user automatic Practice rotation
 
 Migration `0009_per_user_practice_rotation` creates `practice_cycles` and `practice_seen` and backfills existing completed Practice/Timed Test results. This does not delete users, passages, results, sessions or rooms. `POST /api/practice/next` reserves the next unseen passage, and a new cycle starts only when all 3,200 Practice IDs have been seen.

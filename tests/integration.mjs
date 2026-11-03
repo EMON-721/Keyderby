@@ -61,14 +61,22 @@ try{
   assert.equal(firstAssigned.d.total,3200);
   const id1=firstAssigned.d.passage.id;
   assert.equal(firstAssigned.d.passage.pool,'practice');
+  assert.equal(firstAssigned.d.passage.difficulty,'easy','First Practice assignment should be easy');
   const replay=(await a('practice/next',{difficulty:'easy',requestKey:key1})).d;
   assert.equal(replay.passage.id,id1,'Repeated request key must not consume another passage');
   assert.equal(replay.used,firstAssigned.d.used);
   const secondAssigned=(await a('practice/next',{difficulty:'easy',requestKey:key2})).d;
   assert.notEqual(secondAssigned.passage.id,id1,'Next Practice passage cannot repeat the prior one');
+  assert.equal(secondAssigned.passage.difficulty,'hard','Second Practice assignment should be hard');
   assert.equal(secondAssigned.used,firstAssigned.d.used+1);
   assert.equal((await a('attempts',{passageId:id1,mode:'practice',duration:60})).r.status,400,'Previously assigned passage may not be replayed');
-  const practicePassage=secondAssigned.passage;
+  const thirdAssigned=(await a('practice/next',{difficulty:'easy',requestKey:crypto.randomUUID()})).d;
+  assert.equal(thirdAssigned.passage.difficulty,'medium','Third Practice assignment should be medium');
+  const fourthAssigned=(await a('practice/next',{difficulty:'easy',requestKey:crypto.randomUUID()})).d;
+  assert.equal(fourthAssigned.used,thirdAssigned.used+1);
+  assert.ok(![id1,secondAssigned.passage.id,thirdAssigned.passage.id].includes(fourthAssigned.passage.id));
+  const practicePassage=fourthAssigned.passage;
+  record('Practice levels rotate Easy, Hard, Medium, Mixed without user difficulty input');
   const other=(await b('practice/next',{difficulty:'mixed',requestKey:crypto.randomUUID()})).d;
   assert.equal(other.used,1,'Each user has a separate Practice rotation');
   assert.equal((await a('practice/next',{difficulty:'easy',requestKey:'invalid'})).r.status,400);
@@ -84,12 +92,38 @@ try{
  assert.equal((await a('profile',{name:'Bad origin'},'POST',{Origin:'https://attacker.invalid','X-Forwarded-Host':'attacker.invalid'})).r.status,403);assert.equal((await a('profile',{name:'Bad type'},'POST',{'Content-Type':'text/plain'})).r.status,415);assert.equal((await a('profile',{name:'x'.repeat(70000)})).r.status,413);assert.equal((await a('profile',[])).r.status,400);record('CSRF, spoofed forwarding header, body type/size and JSON validation');
  for(const route of ['/.env','/.git/config','/backups/users.sqlite','/content/seed.sql'])assert.equal((await mf.dispatchFetch('https://keyderby.test'+route)).status,404);assert.equal((await mf.dispatchFetch('https://keyderby.test/',{method:'POST',body:'malformed server action'})).status,405);record('Private file paths and unused server-action POST surface are blocked');
  assert.equal((await a('profile',{name:'Test Typist A',admin:true,role:'super_admin'})).d.user.admin,undefined);record('Injected role fields cannot create elevated access');
- const rid=(await a('rooms',{name:'Friends test',visibility:'public',duration:60,capacity:3,difficulty:'easy'})).d.id;await b('rooms/'+rid+'/join',{});let state=(await a('rooms/'+rid)).d;assert.equal(state.room.visibility,'private');assert.equal(state.room.duration,60);assert.equal((await db.prepare('SELECT pool FROM passages WHERE id=?').bind(state.room.passage_id).first()).pool,'friends_race');assert.equal((await a('rooms/'+rid+'/start',{})).r.status,400);await a('rooms/'+rid+'/ready',{ready:true});await b('rooms/'+rid+'/ready',{ready:true});await a('rooms/'+rid+'/start',{});state=(await a('rooms/'+rid)).d;assert.ok(state.room.start_at>Date.now());assert.equal((await b('rooms/'+rid+'/start',{})).r.status,403);record('Friends-only room creation, readiness, ownership and shared finite timer');
+ const rid=(await a('rooms',{name:'Friends test',visibility:'public',duration:60,capacity:3,difficulty:'hard'})).d.id;
+  assert.equal((await db.prepare('SELECT difficulty FROM rooms WHERE id=?').bind(rid).first()).difficulty,'easy','Friends first room must be Easy despite client input');
+  const friendRoomIds=[rid];
+  for(const expected of ['hard','medium','mixed']){
+    const created=await a('rooms',{name:'Rotation '+expected,visibility:'private',duration:60,capacity:2,difficulty:'easy'});
+    assert.equal(created.r.status,200,JSON.stringify(created.d));
+    friendRoomIds.push(created.d.id);
+    const actual=(await db.prepare('SELECT difficulty,passage_id FROM rooms WHERE id=?').bind(created.d.id).first());
+    if(expected!=='mixed')assert.equal(actual.difficulty,expected,'Friends sequence difficulty '+expected);
+  }
+  assert.equal(new Set((await db.prepare("SELECT passage_id FROM rooms WHERE id IN ("+friendRoomIds.map(()=>'?').join(',')+")").bind(...friendRoomIds).all()).results.map(x=>x.passage_id)).size,4);
+  assert.equal((await db.prepare("SELECT count(*) n FROM race_seen WHERE pool='friends_race' AND cycle=1").first()).n,4);
+  record('Friends Race rotates Easy, Hard, Medium, Mixed without manual selection');
+  await b('rooms/'+rid+'/join',{});let state=(await a('rooms/'+rid)).d;assert.equal(state.room.visibility,'private');assert.equal(state.room.duration,60);assert.equal((await db.prepare('SELECT pool FROM passages WHERE id=?').bind(state.room.passage_id).first()).pool,'friends_race');assert.equal((await a('rooms/'+rid+'/start',{})).r.status,400);await a('rooms/'+rid+'/ready',{ready:true});await b('rooms/'+rid+'/ready',{ready:true});await a('rooms/'+rid+'/start',{});state=(await a('rooms/'+rid)).d;assert.ok(state.room.start_at>Date.now());assert.equal((await b('rooms/'+rid+'/start',{})).r.status,403);record('Friends-only room creation, readiness, ownership and shared finite timer');
  await sleep(Math.max(0,state.room.start_at-Date.now()+500));const ra=(await a('attempts',{roomId:rid,mode:'race',duration:0})).d.attempt,rb=(await b('attempts',{roomId:rid,mode:'race'})).d.attempt;assert.equal(ra.snapshot,rb.snapshot);assert.equal(ra.duration,60);await a('attempts/'+ra.id+'/start',{});await b('attempts/'+rb.id+'/start',{});assert.equal((await a('rooms/'+rid+'/progress',{typed:ra.snapshot.slice(0,5)})).r.status,200);assert.ok((await b('rooms/'+rid)).d.players.find(p=>p.user_id===userA).progress>0);assert.equal((await a('attempts/'+ra.id+'/finish',{typed:'unfinished'})).r.status,400);record('Shared race passage, validated car progress and premature-finish rejection');
  // Move only this isolated fixture's server clock to a fixed deadline; no production timestamps are changed.
  const end=Date.now()-60500;await db.prepare('UPDATE rooms SET start_at=? WHERE id=?').bind(end,rid).run();await db.prepare('UPDATE attempts SET started=? WHERE room_id=?').bind(end,rid).run();assert.equal((await a('attempts/'+ra.id+'/finish',{typed:ra.snapshot.slice(0,160),strokes:160,wrong:0})).r.status,200);assert.equal((await b('attempts/'+rb.id+'/finish',{typed:rb.snapshot.slice(0,130),strokes:130,wrong:0})).r.status,200);state=(await a('rooms/'+rid)).d;assert.equal(state.room.state,'finished');assert.ok(state.players.every(p=>p.finished&&p.elapsed===60));record('Timer expiry saves partial race results and completes the race');
  let late=(await a('attempts',{passageId:first.id,mode:'test',duration:15})).d.attempt;await a('attempts/'+late.id+'/start',{});await db.prepare('UPDATE attempts SET started=? WHERE id=?').bind(Date.now()-14000,late.id).run();assert.equal((await a('attempts/'+late.id+'/progress',{typed:late.snapshot.slice(0,10)})).r.status,200);await db.prepare('UPDATE attempts SET started=? WHERE id=?').bind(Date.now()-18000,late.id).run();x=await a('attempts/'+late.id+'/finish',{typed:late.snapshot,strokes:1000,wrong:0});assert.equal(x.d.result.typed,late.snapshot.slice(0,10));assert.equal(x.d.result.elapsed,15);record('Late submissions cannot add text beyond the server deadline');
- const clients=[a,b,client(),client(),client(),client()];for(let i=2;i<clients.length;i++)await clients[i]('bootstrap');const queued=[];for(const person of clients){const q=await person('matchmaking',{});assert.equal(q.r.status,200,JSON.stringify(q.d));queued.push(q.d.id)}assert.ok(queued.slice(0,5).every(id=>id===queued[0]));assert.notEqual(queued[5],queued[0]);state=(await a('rooms/'+queued[0])).d;assert.equal(state.players.length,5);assert.equal(state.room.host,'system');assert.equal(state.room.duration,60);assert.equal((await db.prepare('SELECT pool FROM passages WHERE id=?').bind(state.room.passage_id).first()).pool,'public_race');assert.equal(state.room.state,'racing');assert.ok(state.room.start_at>Date.now());assert.equal((await a('rooms/'+queued[0]+'/start',{})).r.status,403);assert.equal((await a('matchmaking',{})).d.id,queued[0]);record('One-click public matching, five-player capacity, automatic countdown and rejoin');
+ const clients=[a,b,client(),client(),client(),client()];for(let i=2;i<clients.length;i++)await clients[i]('bootstrap');const queued=[];for(const person of clients){const q=await person('matchmaking',{});assert.equal(q.r.status,200,JSON.stringify(q.d));queued.push(q.d.id)}assert.ok(queued.slice(0,5).every(id=>id===queued[0]));assert.notEqual(queued[5],queued[0]);state=(await a('rooms/'+queued[0])).d;assert.equal(state.players.length,5);assert.equal(state.room.host,'system');assert.equal(state.room.duration,60);assert.equal(state.room.difficulty,'easy');assert.equal((await db.prepare('SELECT pool FROM passages WHERE id=?').bind(state.room.passage_id).first()).pool,'public_race');assert.equal(state.room.state,'racing');assert.ok(state.room.start_at>Date.now());assert.equal((await a('rooms/'+queued[0]+'/start',{})).r.status,403);assert.equal((await a('matchmaking',{})).d.id,queued[0]);record('One-click public matching, five-player capacity, automatic countdown and rejoin');
+  const secondPublic=(await db.prepare('SELECT difficulty,passage_id FROM rooms WHERE id=?').bind(queued[5]).first());
+  assert.equal(secondPublic.difficulty,'hard','Second public room should be Hard');
+  await db.prepare("UPDATE rooms SET state='cancelled' WHERE id=?").bind(queued[5]).run();
+  const p3=client();await p3('bootstrap');
+  const thirdPublic=(await p3('matchmaking',{})).d.id;
+  assert.equal((await db.prepare('SELECT difficulty FROM rooms WHERE id=?').bind(thirdPublic).first()).difficulty,'medium','Third public room should be Medium');
+  await db.prepare("UPDATE rooms SET state='cancelled' WHERE id=?").bind(thirdPublic).run();
+  const p4=client();await p4('bootstrap');
+  const fourthPublic=(await p4('matchmaking',{})).d.id;
+  assert.equal(new Set((await db.prepare("SELECT passage_id FROM rooms WHERE id IN (?,?,?,?)").bind(queued[0],queued[5],thirdPublic,fourthPublic).all()).results.map(x=>x.passage_id)).size,4);
+  assert.equal((await db.prepare("SELECT count(*) n FROM race_seen WHERE pool='public_race' AND cycle=1").first()).n,4);
+  record('Public Race rotates Easy, Hard, Medium, Mixed with four distinct shared-room passages');
+
  await a('settings',{visibility:'public',leaderboard:true,countryCode:'BD'});let timed=(await a('attempts',{passageId:first.id,mode:'test',duration:15})).d.attempt;await a('attempts/'+timed.id+'/start',{});await db.prepare('UPDATE attempts SET started=? WHERE id=?').bind(Date.now()-15500,timed.id).run();x=await a('attempts/'+timed.id+'/finish',{typed:timed.snapshot.slice(0,160),strokes:160,wrong:0});assert.equal(x.d.result.eligible,1);const worldwide=(await b('leaderboard?period=weekly&difficulty=easy&duration=15')).d;assert.equal(worldwide.maxRank,30);assert.equal(worldwide.entries.length,1);assert.equal(worldwide.entries[0].publicId,'KD-22301');assert.equal(worldwide.entries[0].countryCode,'BD');assert.ok(worldwide.entries[0].sessions>=1);assert.equal((await b('leaderboard?period=weekly&difficulty=easy&duration=15&mode=race')).d.entries.length,0);await a('settings',{visibility:'public',leaderboard:true,countryCode:'XX'});assert.equal((await a('profile')).d.user.settings.countryCode,'');await a('settings',{visibility:'private',leaderboard:false});assert.equal((await b('leaderboard?period=weekly&difficulty=easy&duration=15')).d.entries.length,0);record('Eligible scores compare like tests and respect immediate privacy opt-out');
  const cycleClient=client();
  const cycleUser=(await cycleClient('bootstrap')).d.user.id;

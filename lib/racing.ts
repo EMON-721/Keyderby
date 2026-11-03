@@ -1,4 +1,5 @@
 import {db,one,query,run,token,limited} from './server';
+import {assignRacePassage} from './race-rotation';
 export const PUBLIC_RACE_SECONDS=60;
 const JOIN_WINDOW_MS=12000;
 const COUNTDOWN_MS=3500;
@@ -20,13 +21,15 @@ export async function joinPublicQueue(user:any){
  if(!Number(available?.n))return Response.json({error:'Practice content is still loading. Try again shortly.'},{status:503});
  for(let retry=0;retry<4;retry++){
   const id=token().slice(0,16).toUpperCase();
-  // Select only from the dedicated 600-public-race pool; the entire room shares this passage.
-  const passage=await one("SELECT id,difficulty FROM passages WHERE status='published' AND pool='public_race' ORDER BY RANDOM() LIMIT 1");
-  if(!passage)return Response.json({error:'No passage is available for racing.'},{status:503});
+  // Reuse an open room before reserving a new passage; every participant shares the room passage.
+  const open=await one("SELECT id FROM rooms WHERE visibility='public' AND state='waiting' AND expires>? AND (auto_start_at IS NULL OR auto_start_at>?) AND (SELECT count(*) FROM participants WHERE room_id=rooms.id)<capacity ORDER BY created LIMIT 1",now,now+COUNTDOWN_MS);
+  const passage=open?null:await assignRacePassage('public_race',id);
   // The conditional insert is one atomic SQL statement, so simultaneous arrivals share a pool.
-  await run(`INSERT INTO rooms(id,host,name,visibility,difficulty,capacity,passage_id,duration,state,created,expires)
-   SELECT ?,'system','Public race','public',?,5,?,?,'waiting',?,?
-   WHERE NOT EXISTS(SELECT 1 FROM rooms WHERE visibility='public' AND state='waiting' AND expires>? AND (auto_start_at IS NULL OR auto_start_at>?) AND (SELECT count(*) FROM participants WHERE room_id=rooms.id)<capacity)`,id,passage.difficulty,passage.id,PUBLIC_RACE_SECONDS,now,now+900000,now,now+COUNTDOWN_MS);
+  if(passage) {
+    await run(`INSERT INTO rooms(id,host,name,visibility,difficulty,capacity,passage_id,duration,state,created,expires)
+     SELECT ?,'system','Public race','public',?,5,?,?,'waiting',?,?
+     WHERE NOT EXISTS(SELECT 1 FROM rooms WHERE visibility='public' AND state='waiting' AND expires>? AND (auto_start_at IS NULL OR auto_start_at>?) AND (SELECT count(*) FROM participants WHERE room_id=rooms.id)<capacity)`,id,passage.difficulty,passage.id,PUBLIC_RACE_SECONDS,now,now+900000,now,now+COUNTDOWN_MS);
+  }
   const room=await one("SELECT * FROM rooms WHERE visibility='public' AND state='waiting' AND expires>? AND (auto_start_at IS NULL OR auto_start_at>?) AND (SELECT count(*) FROM participants WHERE room_id=rooms.id)<capacity ORDER BY created LIMIT 1",now,now+COUNTDOWN_MS);if(!room)continue;
   await run("INSERT OR IGNORE INTO participants(id,room_id,user_id,ready,last_seen) SELECT ?,?,?,1,? WHERE EXISTS(SELECT 1 FROM rooms WHERE id=? AND state='waiting' AND (auto_start_at IS NULL OR auto_start_at>?) AND (SELECT count(*) FROM participants WHERE room_id=rooms.id)<capacity)",room.id+':'+user.id,room.id,user.id,now,room.id,now+COUNTDOWN_MS);
   const joined=await one('SELECT id FROM participants WHERE room_id=? AND user_id=?',room.id,user.id);if(!joined)continue;

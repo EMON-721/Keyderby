@@ -1,5 +1,6 @@
 import { auth, db, query, one, run, uid, hash, token, newSession, limited, publicUser } from '../../../lib/server';
 import {advancePublicRaces,joinPublicQueue} from '../../../lib/racing';
+import {assignRacePassage} from '../../../lib/race-rotation';
 import {ensureCorpus} from '../../../lib/corpus';
 import {assignPractice} from '../../../lib/practice-rotation';
 import {readJson,validateOrigin,HttpFailure,secureResponse} from '../../../lib/http-security';
@@ -309,12 +310,9 @@ async function handler(req: Request) {
             return Response.json({ rooms: await query("SELECT rooms.*,count(participants.id) members FROM rooms LEFT JOIN participants ON participants.room_id=rooms.id AND participants.last_seen>? WHERE rooms.visibility='public' AND rooms.state='waiting' AND rooms.expires>? GROUP BY rooms.id ORDER BY rooms.created DESC LIMIT 30", Date.now() - 30000, Date.now()) });
         if (!p[1] && method === 'POST') {
             await limited('create-room:' + u.id, 5);
-            const difficulty = ['easy', 'medium', 'hard'].includes(body.difficulty) ? body.difficulty : 'easy';
-            const passages = await query("SELECT id FROM passages WHERE status='published' AND pool='friends_race' AND difficulty=?", difficulty);
-            if (!passages.length)
-                return fail('No passages available.');
-            const id = token().slice(0, 16).toUpperCase(), passage = passages[Math.floor(Math.random() * passages.length)];
-            await db().batch([db().prepare('INSERT INTO rooms(id,host,name,visibility,difficulty,capacity,passage_id,duration,created,expires) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(id, u.id, clean(body.name, 60) || 'A friendly derby', 'private', difficulty, Math.max(2, Math.min(6, Number(body.capacity) || 4)), passage.id, [15,30,60,120,300].includes(Number(body.duration))?Number(body.duration):60, Date.now(), Date.now() + 1800000), db().prepare('INSERT INTO participants(id,room_id,user_id,last_seen) VALUES(?,?,?,?)').bind(id + ':' + u.id, id, u.id, Date.now())]);
+            const id = token().slice(0, 16).toUpperCase();
+            const passage = await assignRacePassage('friends_race', id);
+            await db().batch([db().prepare('INSERT INTO rooms(id,host,name,visibility,difficulty,capacity,passage_id,duration,created,expires) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(id, u.id, clean(body.name, 60) || 'A friendly derby', 'private', passage.difficulty, Math.max(2, Math.min(6, Number(body.capacity) || 4)), passage.id, [15,30,60,120,300].includes(Number(body.duration))?Number(body.duration):60, Date.now(), Date.now() + 1800000), db().prepare('INSERT INTO participants(id,room_id,user_id,last_seen) VALUES(?,?,?,?)').bind(id + ':' + u.id, id, u.id, Date.now())]);
             return Response.json({ id });
         }
         await advancePublicRaces();

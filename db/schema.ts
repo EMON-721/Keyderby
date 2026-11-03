@@ -28,3 +28,18 @@ export const practiceSeen = sqliteTable('practice_seen', {
   uniqueIndex('practice_seen_request_unique').on(t.userId,t.requestKey),
   index('practice_seen_user_cycle_idx').on(t.userId,t.cycle)
 ]);
+
+/** Independent room-level rotation for the separate public and friends race pools. */
+export const raceCycles=sqliteTable('race_cycles',{
+  pool:text('pool').primaryKey(),cycle:integer('cycle').notNull().default(1),
+  lastPassageId:text('last_passage_id')
+});
+export const raceSeen=sqliteTable('race_seen',{
+  pool:text('pool').notNull(),cycle:integer('cycle').notNull(),
+  passageId:text('passage_id').notNull().references(()=>passages.id),
+  requestKey:text('request_key').notNull(),assignedAt:integer('assigned_at').notNull()
+},t=>[
+  uniqueIndex('race_seen_cycle_unique').on(t.pool,t.cycle,t.passageId),
+  uniqueIndex('race_seen_request_unique').on(t.pool,t.requestKey),
+  index('race_seen_pool_cycle_idx').on(t.pool,t.cycle)
+]);

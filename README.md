@@ -4,9 +4,15 @@ A minimal typing website with graphite, white and teal styling. Open it and type
 
 Created by **Md. Emon Hossain**.
 
+## Automatic level rotation (no difficulty controls)
+
+In **Practice**, only the Duration input is visible; the previous Difficulty dropdown, automatic-assignment counter, and passage-count label are removed. The **backend selects difficulty automatically in the repeating sequence Easy → Hard → Medium → Mixed**; Mixed draws any unseen passage. Each profile continues to receive each of its 3,200 Practice passages once before a fresh cycle. If a specific difficulty runs out, another unseen passage is used instead of repeating. Existing profile history remains intact.
+
+**Public Race** (600 separate passages) and **Friends Race** (200 separate passages) each use their own room-level Easy → Hard → Medium → Mixed rotation. Every newly created race room receives the next unused passage from its own pool. All players in that room share that same text; user-visible race difficulty controls and labels are hidden. Public Race has a fixed 60-second timer, while Friends Race hosts can still choose the time and number of players. Nothing removes the duration selection or private-room controls.
+
 ## Automatic non-repeating Practice rotation
 
-Each browser profile gets its own server-side Practice sequence. The next unseen passage is assigned automatically: no user-facing dropdown, search or manual repeat. All **3,200 Practice passages** are assigned once per profile/cycle before the next cycle begins; the first new-cycle passage differs from the last previous-cycle passage. Easy/Medium/Difficult are preferences: when one difficulty is exhausted, remaining Practice texts are assigned instead of repeating early. The user chooses duration, but cannot choose a passage. A unique idempotency key prevents retries assigning two texts.
+Each browser profile gets its own server-side Practice sequence. The next unseen passage is assigned automatically: no user-facing dropdown, search or manual repeat. All **3,200 Practice passages** are assigned once per profile/cycle before the next cycle begins; the first new-cycle passage differs from the last previous-cycle passage. The server automatically alternates Easy/Hard/Medium/Mixed difficulty slots; when a level is exhausted, remaining unseen Practice texts are assigned instead of repeating early. The user chooses duration, but cannot choose a passage. A unique idempotency key prevents retries assigning two texts.
 
 The append-only D1 migration `0009_per_user_practice_rotation` counts previously completed Practice/Timed Test passages in cycle one. A passage counts as *seen* when assigned, including if the browser closes before the user types it; this ensures no repeated preview after refresh. Profile IDs, saved attempts, recovery codes and 800 Race passages are preserved. Public/Friends Race must give all room members a shared passage, so this independent rotation applies to **Practice only**.
 
@@ -16,7 +22,7 @@ Every published passage belongs to exactly one category, assigned by a non-destr
 
 - **Practice: 3,200** passages. Easy 1,502, Medium 898, Difficult 800. Mixed shows these 3,200, not the Race content.
 - **Public Race: 600** passages. Shared by players in public matchmaking rooms.
-- **Friends Race: 200** passages. Selected by configured room difficulty in private rooms.
+- **Friends Race: 200** passages. Selected automatically by the room-level Easy → Hard → Medium → Mixed rotation, not by a host-selected difficulty.
 
 Search and selection now share one field. The old “X shown · Y available” line and Timed Test tab have been removed from the UI. Timed duration controls and historical test results remain. Worldwide rankings display **Top 30** users, not Top 20. Server-side checks prevent Race-only passages being submitted as Practice; unit/integration tests verify each activity's pool and all 4,000 unique IDs.
 
@@ -24,7 +30,7 @@ Search and selection now share one field. The old “X shown · Y available” l
 
 1. Open the website and choose **Practice**. Select Easy, Medium or Difficult, a passage, and a 15–300 second timer. Press **Start practice** and begin typing. The timer starts on your first keystroke.
 2. Watch your live WPM, accuracy, remaining time and car progress. When time ends, your result is saved automatically. **Progress** shows your previous results.
-3. Open **Practice** to receive an automatic passage; search and selection have been removed. Every profile cycles through 3,200 unique Practice passages before any repeats. Select difficulty preference and duration if desired. Race keeps another 800 passages: 600 Public Race and 200 Friends Race.
+3. Open **Practice** to receive an automatic passage. Choose only a Duration; the server rotates Easy, Hard, Medium, Mixed automatically without displaying a difficulty picker or passage count. All 3,200 Practice passages appear once per profile cycle. Race keeps 600 Public and 200 Friends passages in independent automatic room sequences.
 4. For a public match, open **Race** and press **Enter race**. You join a pool of 2–5 real players automatically; after another person joins, a shared countdown starts. Everyone types the same passage for 60 seconds.
 5. To race friends, choose **Race → With friends**. One player creates a private room and shares its code or invite link. Friends join, mark themselves ready, and the room creator starts the timed race.
 6. Click **Add your name** to save a display name. Keyderby automatically assigns a readable, permanent driver ID such as `KD-22301` and remembers your progress in this browser. No sign-in is required. An optional recovery code under Profile can help restore your profile on another browser.

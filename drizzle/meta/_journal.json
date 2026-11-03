@@ -71,6 +71,13 @@
       "when": 1793716400000,
       "tag": "0009_per_user_practice_rotation",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793720000000,
+      "tag": "0010_race_rotation",
+      "breakpoints": true
     }
   ]
 }
