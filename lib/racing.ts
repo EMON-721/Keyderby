@@ -16,12 +16,12 @@ export async function joinPublicQueue(user:any){
  const now=Date.now();
  const existing=await one("SELECT rooms.* FROM rooms JOIN participants ON participants.room_id=rooms.id WHERE participants.user_id=? AND rooms.visibility='public' AND rooms.expires>? AND (rooms.state='waiting' OR (rooms.state='racing' AND (rooms.start_at+rooms.duration*1000)>? AND participants.result_id IS NULL)) ORDER BY rooms.created DESC LIMIT 1",user.id,now,now);
  if(existing){await run('UPDATE participants SET last_seen=? WHERE room_id=? AND user_id=?',now,existing.id,user.id);return Response.json({id:existing.id,duration:existing.duration})}
- const available=await one("SELECT count(*) n FROM passages WHERE status='published'");
+ const available=await one("SELECT count(*) n FROM passages WHERE status='published' AND pool='public_race'");
  if(!Number(available?.n))return Response.json({error:'Practice content is still loading. Try again shortly.'},{status:503});
  for(let retry=0;retry<4;retry++){
   const id=token().slice(0,16).toUpperCase();
-  // All published difficulties are eligible; everyone in the same room receives the same randomly chosen passage.
-  const passage=await one("SELECT id,difficulty FROM passages WHERE status='published' ORDER BY RANDOM() LIMIT 1");
+  // Select only from the dedicated 600-public-race pool; the entire room shares this passage.
+  const passage=await one("SELECT id,difficulty FROM passages WHERE status='published' AND pool='public_race' ORDER BY RANDOM() LIMIT 1");
   if(!passage)return Response.json({error:'No passage is available for racing.'},{status:503});
   // The conditional insert is one atomic SQL statement, so simultaneous arrivals share a pool.
   await run(`INSERT INTO rooms(id,host,name,visibility,difficulty,capacity,passage_id,duration,state,created,expires)

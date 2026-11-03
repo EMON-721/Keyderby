@@ -4,11 +4,21 @@ A minimal typing website with graphite, white and teal styling. Open it and type
 
 Created by **Md. Emon Hossain**.
 
+## Passage allocation — 4,000 unique records, no overlap
+
+Every published passage belongs to exactly one category, assigned by a non-destructive, append-only database migration:
+
+- **Practice: 3,200** passages. Easy 1,502, Medium 898, Difficult 800. Mixed shows these 3,200, not the Race content.
+- **Public Race: 600** passages. Shared by players in public matchmaking rooms.
+- **Friends Race: 200** passages. Selected by configured room difficulty in private rooms.
+
+Search and selection now share one field. The old “X shown · Y available” line and Timed Test tab have been removed from the UI. Timed duration controls and historical test results remain. Worldwide rankings display **Top 30** users, not Top 20. Server-side checks prevent Race-only passages being submitted as Practice; unit/integration tests verify each activity's pool and all 4,000 unique IDs.
+
 ## How to use Keyderby
 
-1. Open the website and choose **Practice** or **Timed test**. Select Easy, Medium or Difficult, a passage, and a 15–300 second timer. Press **Start practice** and begin typing. The timer starts on your first keystroke.
+1. Open the website and choose **Practice**. Select Easy, Medium or Difficult, a passage, and a 15–300 second timer. Press **Start practice** and begin typing. The timer starts on your first keystroke.
 2. Watch your live WPM, accuracy, remaining time and car progress. When time ends, your result is saved automatically. **Progress** shows your previous results.
-3. In **Practice** or **Timed test**, choose Easy (1,877), Medium (1,123), Difficult (1,000) or Mixed (all 4,000). The **Passage** dropdown loads the entire selected category via paged metadata requests, not just 50–200 items. Use **Search all passages** to filter by ID/title/category; opening a passage loads its full text separately. The passage-count shortcut is intentionally hidden. Public Race chooses a shared random passage from the full 4,000-entry pool, while Friends Race chooses from its configured difficulty.
+3. Use the single **Passage** search-and-select box to pick any of the dedicated **3,200 Practice passages** (Easy, Medium, Difficult or Mixed). The Race area has another **800 non-overlapping passages**: 600 for Public Race and 200 for Friends Race. No separate Timed Test tab or passage-count caption is shown.
 4. For a public match, open **Race** and press **Enter race**. You join a pool of 2–5 real players automatically; after another person joins, a shared countdown starts. Everyone types the same passage for 60 seconds.
 5. To race friends, choose **Race → With friends**. One player creates a private room and shares its code or invite link. Friends join, mark themselves ready, and the room creator starts the timed race.
 6. Click **Add your name** to save a display name. Keyderby automatically assigns a readable, permanent driver ID such as `KD-22301` and remembers your progress in this browser. No sign-in is required. An optional recovery code under Profile can help restore your profile on another browser.
@@ -20,7 +30,7 @@ Created by **Md. Emon Hossain**.
 - Live corrected WPM, accuracy, character feedback, car progress and private saved results.
 - **Race → Enter race** automatically joins a public pool of 2–5 real players. A second player starts a 12 second joining window; a full grid shortens the countdown. Public races last 60 seconds and need no room creator or host action.
 - **Race → Friends** creates or joins an invite-only room, with a selected timer and shared start. Its host is an ordinary participant with control of that one room.
-- Private custom text, timed tests, personal progress, worldwide opt-in Top 20 rankings and optional profile recovery.
+- Private custom text, timed Practice sessions, personal progress, worldwide opt-in Top 30 rankings and optional profile recovery.
 
 ## Run locally
 
@@ -34,7 +44,7 @@ pnpm exec wrangler d1 migrations apply DB --local --config dist/server/wrangler.
 pnpm start
 ```
 
-The first page visit automatically inserts any missing passages from the 4,000-record bundle in D1, including 1,000 new items in an existing 3,000-passage database. The complete API selection catalog is paged at 500 compact metadata entries per request; selecting a passage fetches its body by ID. An automated integration test enumerates every item in Easy, Medium, Difficult and Mixed, asserting exactly 4,000 unique reachable choices. There is no seed endpoint or manual content setup. `pnpm dev` runs the development UI. Retained migrations are append-only historical records; the current schema has no privileged account fields or management tables. Never replay migrations directly on an existing database; use Wrangler's migration journal.
+The first page visit automatically inserts missing passages from the 4,000-record bundle in D1. After the latest D1 migration, 3,200 are in the Practice catalog (with paginated metadata), 600 in Public Race and 200 in Friends Race. Automated integration tests enumerate all 3,200 Practice choices and verify 800 separate racing choices. There is no seed endpoint or manual content setup. `pnpm dev` runs the development UI. Retained migrations are append-only historical records; the current schema has no privileged account fields or management tables. Never replay migrations directly on an existing database; use Wrangler's migration journal.
 
 ## Deploy to your Cloudflare account
 
@@ -72,7 +82,7 @@ The public footer contains only a centered copyright/creator line. The Typing gu
 ## Global rankings and online users
 
 - The former **Words** navigation and its vocabulary/repeat-word module have been removed. Only Practice, Race and Rankings remain in the top navigation. Progress, settings and dark mode are inside the profile menu.
-- **Rankings** presents up to **20 real, qualifying users**, never fabricated entries. Filter by standard practice, timed tests, or race; time period; difficulty; and duration. The global board accepts players worldwide.
+- **Rankings** presents up to **30 real, qualifying users**, never fabricated entries. Filter by practice or race; time period; difficulty; and duration. The global board accepts players worldwide.
 - Only named users who explicitly turn on public ranking visibility in **Settings → Global rankings & privacy** appear. This consent also permits their recent online status, aggregate practice time/session count and optional, self-reported country plus flag to appear. Hidden or guest profiles are never listed. Online means a visible browser has contacted the server in the past two minutes, not a guaranteed persistent connection.
 - Rankings show the best corrected WPM and average accuracy for the selected mode/difficulty/duration/period, plus each opted-in user's all-time number of completed standard practice/test/race sessions and total minutes. Qualifying attempts need 150+ typed characters, at least 15 seconds, 90%+ accuracy, and a completed timer, with existing speed and integrity checks. Old practice results recorded before the eligibility rule changed may not qualify retroactively.
 - The service records an activity timestamp for presence. Countries and flags come from an optional ISO country/territory selector; the service never infers location from IP addresses. D1 migrations add the activity column and readable ID allocation with append-only backfilling. Apply with `pnpm cloudflare:migrate` before deploying this version. Existing internal random IDs and recovery credentials remain unchanged.

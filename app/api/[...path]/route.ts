@@ -83,12 +83,12 @@ async function handler(req: Request) {
     }
     if (p[0] === 'passages') {
         if(method!=='GET')return fail('Method not allowed.',405);
-        // Lightweight, complete passage catalog for Practice and Timed test. No large text bodies.
+        // Complete paginated 3,200-passage Practice catalog. Race-only pools are excluded.
         // Pagination prevents payload limits and keeps the 4,000 item dropdown searchable.
         if (p[1] === 'options') {
             const requestedDifficulty = url.searchParams.get('difficulty') || 'mixed';
             if (!['easy','medium','hard','mixed'].includes(requestedDifficulty)) return fail('Invalid difficulty.');
-            const where = requestedDifficulty === 'mixed' ? "status='published'" : "status='published' AND difficulty=?";
+            const where = requestedDifficulty === 'mixed' ? "status='published' AND pool='practice'" : "status='published' AND pool='practice' AND difficulty=?";
             const filters = requestedDifficulty === 'mixed' ? [] : [requestedDifficulty];
             const offset = Math.max(0, Math.min(100000, Math.floor(Number(url.searchParams.get('offset')) || 0)));
             const limit = Math.max(1, Math.min(500, Math.floor(Number(url.searchParams.get('limit')) || 500)));
@@ -99,7 +99,7 @@ async function handler(req: Request) {
         if(p[1]){const passage=await one("SELECT * FROM passages WHERE id=? AND status='published'",clean(p[1]));return passage?Response.json({...passage,...metadata(passage)}):fail('Passage not found.',404)}
         const limit = Math.max(1, Math.min(50, Number(url.searchParams.get('limit')) || 20));
         const offset = Math.max(0, Number(url.searchParams.get('offset')) || 0);
-        let where = "status='published'", args: any[] = [];
+        let where = "status='published' AND pool='practice'", args: any[] = [];
         const difficulty = url.searchParams.get('difficulty'), category = url.searchParams.get('category'), search = url.searchParams.get('search');
         if (difficulty && difficulty !== 'mixed' && difficulty !== 'adaptive') {
             where += ' AND difficulty=?';
@@ -119,6 +119,10 @@ async function handler(req: Request) {
         if (method === 'POST' && !p[1]) {
             const mode = ['practice', 'test', 'punctuation', 'numbers', 'challenge', 'custom', 'race', 'mistakes'].includes(body.mode) ? body.mode : 'practice';
             let passage = body.passageId ? await one("SELECT * FROM passages WHERE id=? AND status='published'", body.passageId) : null;
+            if (passage && ['practice','test','challenge'].includes(mode) && passage.pool !== 'practice')
+                return fail('This passage belongs to Race, not Practice.');
+            if (mode === 'race' && !body.roomId)
+                return fail('A real race room is required to use Race passages.',403);
             const duration = [15, 30, 60, 120, 300].includes(Number(body.duration)) ? Number(body.duration) : 60;
             let room = null;
             if (body.roomId) {
@@ -133,7 +137,7 @@ async function handler(req: Request) {
             }
             if (mode === 'challenge') {
                 const diff = ['easy', 'medium', 'hard'].includes(body.difficulty) ? body.difficulty : 'easy';
-                const list = await query("SELECT * FROM passages WHERE difficulty=? AND status='published' ORDER BY id", diff);
+                const list = await query("SELECT * FROM passages WHERE difficulty=? AND status='published' AND pool='practice' ORDER BY id", diff);
                 passage = list[Math.floor(Date.now() / 86400000) % list.length];
             }
             let text = passage?.text, title = passage?.title || 'Custom practice';
@@ -269,14 +273,14 @@ async function handler(req: Request) {
           FROM attempts a JOIN users ON users.id=a.user_id
           WHERE a.eligible=1 AND ${publicFilter} AND a.finished>? AND a.difficulty=? AND a.duration=?
             AND a.mode IN ('practice','test','race') AND (?='all' OR a.mode=?)
-          GROUP BY users.id ORDER BY wpm DESC, accuracy DESC, sessions DESC LIMIT 20`,
+          GROUP BY users.id ORDER BY wpm DESC, accuracy DESC, sessions DESC LIMIT 30`,
           cutoff, since, difficulty, duration, mode, mode);
         const onlineUsers = await query(
           `SELECT users.public_id publicId, users.name, CASE WHEN json_valid(users.settings) THEN json_extract(users.settings,'$.country') ELSE NULL END country, CASE WHEN json_valid(users.settings) THEN json_extract(users.settings,'$.countryCode') ELSE NULL END countryCode
-           FROM users WHERE ${publicFilter} AND users.last_active>? ORDER BY users.last_active DESC LIMIT 20`, cutoff);
+           FROM users WHERE ${publicFilter} AND users.last_active>? ORDER BY users.last_active DESC LIMIT 30`, cutoff);
         return Response.json({ entries, onlineUsers, onlineCount: (await one(
           `SELECT count(*) n FROM users WHERE ${publicFilter} AND users.last_active>?`, cutoff)).n,
-          period, difficulty, duration, mode, maxRank: 20, onlineWindowSeconds: 120 });
+          period, difficulty, duration, mode, maxRank: 30, onlineWindowSeconds: 120 });
     }
     if(p[0]==='matchmaking'){
       if(method!=='POST')return fail('Method not allowed.',405);
@@ -288,7 +292,7 @@ async function handler(req: Request) {
         if (!p[1] && method === 'POST') {
             await limited('create-room:' + u.id, 5);
             const difficulty = ['easy', 'medium', 'hard'].includes(body.difficulty) ? body.difficulty : 'easy';
-            const passages = await query("SELECT id FROM passages WHERE status='published' AND difficulty=?", difficulty);
+            const passages = await query("SELECT id FROM passages WHERE status='published' AND pool='friends_race' AND difficulty=?", difficulty);
             if (!passages.length)
                 return fail('No passages available.');
             const id = token().slice(0, 16).toUpperCase(), passage = passages[Math.floor(Math.random() * passages.length)];

@@ -9,7 +9,7 @@
 5. Set `KEYDERBY_D1_DATABASE_ID` to that UUID, then run `pnpm cloudflare:config`. This prepares `dist/server/wrangler.cloudflare.json` with your D1 binding and migration path. The UUID itself is not a credential.
 6. Run `pnpm cloudflare:migrate`. This applies pending schema migrations to your own D1 database.
 7. Run `pnpm cloudflare:deploy`. Use the actual workers.dev URL returned by Wrangler, or attach your domain in Cloudflare.
-8. Open the site. The first bootstrap request inserts the bundled 4,000 passages automatically (existing 3,000 remain unchanged). Create a name-only profile, run a short timed test and verify that results persist after refresh.
+8. Open the site. The first bootstrap request inserts the bundled 4,000 passages automatically (existing 3,000 remain unchanged). Create a name-only profile, run a short Practice session and verify that results persist after refresh.
 9. To check multiplayer, use separate browser profiles/devices. Both choose Race → Enter race. They should share a pool, see a countdown and receive the same passage. There are no simulated opponents.
 
 The `.openai/hosting.json` identifier belongs to the separate preview workflow; it is not a Cloudflare API key. Your own Cloudflare deployment uses the generated Wrangler config. There are no runtime service credentials required beyond Cloudflare's managed D1 binding.
@@ -44,6 +44,19 @@ Static-only Cloudflare Pages or a static Netlify upload cannot provide this appl
 Run `pnpm exec wrangler deploy --dry-run --config dist/server/wrangler.cloudflare.json` to inspect deployment size before publishing. The bundled corpus is public practice content. Never upload local `.wrangler` storage, database dumps, environment files, session/recovery records or private exports as assets. The Worker also blocks common private-file paths, but exclusion from the build is the primary protection.
 
 Current tests cover application flows in Miniflare/D1. They do not prove a specific production concurrency capacity. The live review preview and your Cloudflare account are separate deployments with separate databases.
+
+## Verify the three non-overlapping passage pools
+
+The `0008_distinct_passage_pools` D1 migration adds an indexed `pool` field and distributes existing published records without deleting passages or saved user results. **Migrations must be applied before deploying the new Worker**.
+
+Use the production D1 Console:
+
+```sql
+SELECT pool, COUNT(*) AS passages FROM passages WHERE status='published' GROUP BY pool ORDER BY pool;
+SELECT COUNT(DISTINCT id) AS unique_passages FROM passages WHERE status='published';
+```
+
+Expected results: `practice = 3200`, `public_race = 600`, `friends_race = 200`, and `unique_passages = 4000`. The separate Practice catalog excludes Race-only content, public matchmaking uses only `public_race`, and friends rooms use only `friends_race`. Retain the existing database and all earlier migrations.
 
 ## Verify the 4,000 passages and updated user IDs on your production D1
 
