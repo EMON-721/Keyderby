@@ -2,10 +2,10 @@
 
 ## Project identity
 
-Keyderby is a typing-practice and racing application. Its timed practice, public races, friend rooms, passage rotation and global rankings are described in the sections above. It uses self-service profile controls rather than a platform administration dashboard.
+Keyderby is a typing-practice and racing application. Its timed practice, public races, friend rooms, passage rotation and global rankings are described in the sections above..
 
 
-A minimal typing website with graphite, white and teal styling. Open it and type; a name-only profile gets a readable, automatically assigned driver ID such as `KD-22301`. There is no application login, email/password requirement, platform administrator, privileged role or management interface.
+A minimal typing website with graphite, white and teal styling. Open it and type; a name-only profile gets a readable, automatically assigned driver ID such as `KD-22301`. There is no application login or email/password requirement.
 
 Created by **Md. Emon Hossain**.
 
