@@ -1,5 +1,10 @@
 # Keyderby
 
+## Project identity
+
+Keyderby is a typing-practice and racing application. Its timed practice, public races, friend rooms, passage rotation and global rankings are described in the sections above. It uses self-service profile controls rather than a platform administration dashboard.
+
+
 A minimal typing website with graphite, white and teal styling. Open it and type; a name-only profile gets a readable, automatically assigned driver ID such as `KD-22301`. There is no application login, email/password requirement, platform administrator, privileged role or management interface.
 
 Created by **Md. Emon Hossain**.
@@ -150,10 +155,8 @@ Race progress uses one-second polling, not WebSockets. Scoring is computed on th
 - `content/`, `public/sources/`: real passage corpus, source editions and licenses.
 - `tests/`, `docs/`: reproducible checks and deployment instructions.
 
-<!-- DEPLOYMENT LINKS: maintained for GitHub repository navigation -->
 ## Website & repository links
 
-- **Source repository:** https://github.com/EMON-721/Keyderby
+- **Source repository:** https://github.com/emonhossain24/Keyderby
 - **Published website URL (owner-provided):** https://keyderby.emon721.workers.dev/
 
-<!-- END DEPLOYMENT LINKS -->
