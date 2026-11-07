@@ -125,7 +125,7 @@ node scripts/number-passages.mjs
 pnpm content:validate
 ```
 
-Validation checks unique text/IDs, titles, numbering, word counts, difficulty bounds and provenance. Full individual editorial review is still pending. Difficulty uses text-length and readability heuristics. See [content notes](docs/CONTENT.md). Content is a versioned source asset; runtime initialization inserts missing IDs automatically. Changing existing published text requires a deliberate data-version migration.
+Validation checks unique text/IDs, titles, numbering, word counts, difficulty bounds and provenance. Difficulty uses text-length and readability heuristics; individual texts are accompanied by provenance records. See [content notes](docs/CONTENT.md). Content is a versioned source asset; runtime initialization inserts missing IDs automatically. Changing existing published text requires a deliberate data-version migration.
 
 ## Verification
 
